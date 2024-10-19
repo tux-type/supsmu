@@ -1,6 +1,6 @@
 #include "local.h"
 
-Params fit_linear(float_t *x, float_t *y, size_t len) {
+Params fit_linear(const float_t *x, const float_t *y, const size_t len) {
   float_t sum_x = 0;
   float_t sum_y = 0;
   float_t sum_x2 = 0;
@@ -20,7 +20,7 @@ Params fit_linear(float_t *x, float_t *y, size_t len) {
   return params;
 }
 
-void fit_local_linear(Params *local_params, float_t *x, float_t *y, size_t len,
+void fit_local_linear(Params *local_params, const float_t *x, const float_t *y, const size_t len,
                       size_t J) {
   // Stride of 1
   for (size_t i = 0; i < len; i++) {
@@ -28,8 +28,8 @@ void fit_local_linear(Params *local_params, float_t *x, float_t *y, size_t len,
   }
 }
 
-void local_linear_forward(float_t *yhat, Params *local_params, float_t *x,
-                          size_t len) {
+void forward_local_linear(float_t *yhat, const Params *local_params, const float_t *x,
+                          const size_t len) {
   for (size_t i = 0; i < len; i++) {
     yhat[i] = x[i] * local_params[i].w + local_params[i].b;
   }
