@@ -21,11 +21,17 @@ Params fit_linear(float_t *x, float_t *y, size_t len) {
   return params;
 }
 
-Params *fit_local_linear(float_t *x, float_t *y, size_t len, size_t J) {
-  Params *local_params = malloc(sizeof(Params) * len);
-
+void fit_local_linear(Params *local_params, float_t *x, float_t *y, size_t len,
+                      size_t J) {
+  // Stride of 1
   for (size_t i = 0; i < len; i++) {
     local_params[i] = fit_linear(&x[i], &y[i], J);
   }
-  return local_params; // Caller expected to free.
+}
+
+void local_linear_forward(float_t *yhat, Params *local_params, float_t *x,
+                          size_t len) {
+  for (size_t i = 0; i < len; i++) {
+    yhat[i] = x[i] * local_params[i].w + local_params[i].b;
+  }
 }
