@@ -1,5 +1,4 @@
 #include "local.h"
-#include <stdlib.h>
 
 Params fit_linear(float_t *x, float_t *y, size_t len) {
   float_t sum_x = 0;
