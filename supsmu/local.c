@@ -1,5 +1,6 @@
-#include <stdio.h>
 #include "local.h"
+#include <assert.h>
+#include <stdio.h>
 
 Params fit_linear(const float_t *x, const float_t *y, const size_t len) {
   Params params = {.w = 0, .b = 0};
@@ -21,7 +22,6 @@ Params fit_linear(const float_t *x, const float_t *y, const size_t len) {
     sum_xy += (x[i] * y[i]);
   }
 
-
   float_t denominator = ((len * sum_x2) - (sum_x * sum_x));
 
   // Return constant model if denominator is 0 (all x2 values add up to 0)
@@ -30,7 +30,6 @@ Params fit_linear(const float_t *x, const float_t *y, const size_t len) {
     params.b = sum_y / len;
     return params;
   }
-
 
   params.w = ((len * sum_xy) - (sum_x * sum_y)) / denominator;
   params.b = ((sum_y * sum_x2) - (sum_x * sum_xy)) / denominator;
@@ -45,17 +44,23 @@ Params fit_linear(const float_t *x, const float_t *y, const size_t len) {
     printf("sum_xy: %lf\n", sum_xy);
     printf("params.w: %lf\n", params.w);
     printf("params.b: %lf\n", params.b);
-
   }
   return params;
 }
 
 void fit_local_linear(Params *local_params, const float_t *x, const float_t *y,
                       const size_t len, size_t J) {
+  size_t half_J = J / 2;
   for (size_t i = 0; i < len; i++) {
-    // Avoid out of bounds where J is smaller than remaining array
-    J = (len - i) < J ? (len - i) : J;
-    local_params[i] = fit_linear(&x[i], &y[i], J);
+    // Avoid out of bounds where J is smaller/larger than remaining array
+    size_t start = (i < half_J) ? 0 : i - half_J;
+    size_t end = (i + half_J) >= len ? len - 1 : i + half_J;
+
+    size_t actual_J = end - start + 1;
+
+    assert((start + actual_J) <= len);
+
+    local_params[i] = fit_linear(&x[start], &y[start], actual_J);
   }
 }
 
