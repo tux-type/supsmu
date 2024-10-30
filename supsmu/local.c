@@ -49,8 +49,7 @@ Params fit_linear(const float_t *x, const float_t *y, const size_t len) {
 }
 
 void fit_local_linear(Params *local_params, const float_t *x, const float_t *y,
-                      const size_t len, size_t J) {
-  size_t half_J = J / 2;
+                      const size_t len, size_t half_J) {
   for (size_t i = 0; i < len; i++) {
     // Avoid out of bounds where J is smaller/larger than remaining array
     size_t start = (i < half_J) ? 0 : i - half_J;
