@@ -230,8 +230,19 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
   printf("y: %lf, %lf, %lf, %lf, %lf\n", y[0], y[1], y[2], y[3], y[4]);
   // Initial fill of the window
   for (size_t i = 0; i < J; i++) {
+    size_t j = jper == 2 ? i - half_J - 1 : i;
+    // TODO: Tidy up, split out if statement for only the jper == 2 case
+    // j is purely for periodic case, when jper is not 2, j should always == i and >= 0
+    float_t x_j;
+    if (j >= 0) {
+      x_j = x[j];
+    } else {
+      j = n + j;
+      // Adjust by -1 so x appears close to other points in the window (?)
+      x_j = x[j] - 1.0;
+    }
     // TODO: Determine if it's worthwile to in-line update_stats
-    update_stats(&stats, x[i], y[i], w[i], true);
+    update_stats(&stats, x_j, y[j], w[j], true);
   }
   printf("xm: %lf\n", stats.x_mean);
   printf("ym: %lf\n", stats.y_mean);
@@ -247,10 +258,25 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
     ssize_t out = j - half_J - 1;
     size_t in = j + half_J;
 
-    // TODO: Add additional checks for bounds
+    // TODO: Further tidy up of conditional statements
     if (jper == 2 || (out >= 0 && in < n)) {
-      update_stats(&stats, x[out], y[out], w[out], false);
-      update_stats(&stats, x[in], y[in], w[in], true);
+      float_t x_out;
+      float_t x_in;
+      // Out of bounds checks: only applies when jper == 2
+      if (out < 0) {
+        out = n + out;
+        x_out = x[out] - 1.0;
+        x_in = x[in];
+      } else if (in >= n) {
+        in = in - n;
+        x_out = x[out];
+        x_in = x[in] + 1.0;
+      } else {
+        x_out = x[out];
+        x_in = x[in];
+      }
+      update_stats(&stats, x_out, y[out], w[out], false);
+      update_stats(&stats, x_in, y[in], w[in], true);
       // printf("out: %lu\n", out);
       // printf("in: %lu\n", in);
       // printf("x[out]: %lf\n", x[out]);
