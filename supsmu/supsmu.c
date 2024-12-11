@@ -254,7 +254,8 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
   for (size_t i = 0; i < J; i++) {
     size_t j = jper == 2 ? i - half_J - 1 : i;
     // TODO: Tidy up, split out if statement for only the jper == 2 case
-    // j is purely for periodic case, when jper is not 2, j should always == i and >= 0
+    // j is purely for periodic case, when jper is not 2, j should always == i
+    // and >= 0
     float_t x_j;
     if (j >= 0) {
       x_j = x[j];
