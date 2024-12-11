@@ -96,9 +96,20 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
   float_t small = 1.0e-7;
   float_t eps = 1.0e-3;
 
-  size_t q1 = n / 4;
-  size_t q3 = 3 * q1;
-  float_t iqr = x[q3] - x[q1];
+  // Edge case: smoothed values as weighted mean of y
+  if (x[n - 1] <= x[0]) {
+    float_t sum_y = 0;
+    float_t sum_w = 0;
+    for (size_t j = 0; j < n; j++) {
+      sum_y = sum_y + w[j] * y[j];
+      sum_w = sum_w + w[j];
+    }
+    float_t a = sum_w > 0 ? a = sum_y / sum_w : 0;
+    for (size_t j = 0; j < n; j++) {
+      smo[j] = a;
+    }
+    return;
+  }
 
   // TODO: Add handling for when iqr <= 0 (i.e. when x[qr] < x[q1])
 
