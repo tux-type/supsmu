@@ -111,9 +111,20 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
     return;
   }
 
-  // TODO: Add handling for when iqr <= 0 (i.e. when x[qr] < x[q1])
+  size_t i = n / 4; // Q1
+  size_t j = 3 * i; // Q3
+  // Offset by 1 to account for 0 based indexing
+  float_t scale = x[j - 1] - x[i - 1]; // Scale = IQR
 
-  float_t vsmlsq = pow(eps * iqr, 2);
+  // TODO: Double check if this can enter an infinite loop e.g. when x values
+  // are same (shouldn't happen due to bounds check above)
+  while (scale <= 0) {
+    j = j < (n - 1) ? j + 1 : j;
+    i = i > 0 ? i - 1 : i;
+    scale = x[j] - x[i];
+  }
+
+  float_t vsmlsq = pow(eps * scale, 2);
   size_t jper = iper;
 
   jper = (iper == 2 && (x[0] < 0.0 || x[n] > 1.0)) ? 1 : jper;
