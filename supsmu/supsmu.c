@@ -89,8 +89,7 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
             float_t span, float_t alpha, float_t *smo) {
   // Change sc to an array of structs containing 7 fields?
   // -- No, because sometimes we loop over n
-  // -- Or perhaps do struct of 7 arrays? That way we can loopdy loop over them
-  // init? -- GOOD since Fortran arrays in col-major order
+  // -- Or perhaps do struct of 7 arrays? -- GOOD since Fortran arrays in col-major order
   float_t *sc = calloc(n * 7, sizeof(float_t));
   float_t spans[3] = {0.05, 0.2, 0.5};
   float_t small = 1.0e-7;
@@ -252,6 +251,7 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
   printf("y: %lf, %lf, %lf, %lf, %lf\n", y[0], y[1], y[2], y[3], y[4]);
   // Initial fill of the window
   for (size_t i = 0; i < J; i++) {
+    // Consider changing j to ssize_t since it might move below 0?
     size_t j = jper == 2 ? i - half_J - 1 : i;
     // TODO: Tidy up, split out if statement for only the jper == 2 case
     // j is purely for periodic case, when jper is not 2, j should always == i
@@ -341,8 +341,27 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
 
   printf("smo: %lf, %lf, %lf, %lf, %lf\n", smo[0], smo[1], smo[2], smo[3],
          smo[4]);
+  
+
   // Recompute fitted values smo[j] as weighted mean for non-unique x[.] values:
-  // TODO: Add code to handle same x values
+  for (size_t j = 0; j < n; j++) {
+    size_t j0 = j;
+    float_t sum_y = smo[j] * w[j];
+    float_t sum_weight = w[j];
+
+    while (j < (n - 1) && x[j + 1] <= x[j]) {
+      j = j + 1;
+      sum_y = sum_y + w[j] * smo[j];
+      sum_weight = sum_weight + w[j];
+    }
+    if (j > j0) {
+      float_t a = sum_weight > 0 ? sum_y / sum_weight : 0;
+      for (size_t i = j0; i < j; i++) {
+        smo[i] = a;
+      }
+    }
+  }
+
 }
 
 void update_stats(RunningStats *stats, float_t x, float_t y, float_t weight,
