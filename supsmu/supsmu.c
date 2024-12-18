@@ -89,20 +89,41 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
             float_t span, float_t alpha, float_t *smo) {
   // Change sc to an array of structs containing 7 fields?
   // -- No, because sometimes we loop over n
-  // -- Or perhaps do struct of 7 arrays? That way we can loopdy loop over them
-  // init? -- GOOD since Fortran arrays in col-major order
+  // -- Or perhaps do struct of 7 arrays? -- GOOD since Fortran arrays in col-major order
   float_t *sc = calloc(n * 7, sizeof(float_t));
   float_t spans[3] = {0.05, 0.2, 0.5};
   float_t small = 1.0e-7;
   float_t eps = 1.0e-3;
 
-  size_t q1 = n / 4;
-  size_t q3 = 3 * q1;
-  float_t iqr = x[q3] - x[q1];
+  // Edge case: smoothed values as weighted mean of y
+  if (x[n - 1] <= x[0]) {
+    float_t sum_y = 0;
+    float_t sum_w = 0;
+    for (size_t j = 0; j < n; j++) {
+      sum_y = sum_y + w[j] * y[j];
+      sum_w = sum_w + w[j];
+    }
+    float_t a = sum_w > 0 ? a = sum_y / sum_w : 0;
+    for (size_t j = 0; j < n; j++) {
+      smo[j] = a;
+    }
+    return;
+  }
 
-  // TODO: Add handling for when iqr <= 0 (i.e. when x[qr] < x[q1])
+  size_t i = n / 4; // Q1
+  size_t j = 3 * i; // Q3
+  // Offset by 1 to account for 0 based indexing
+  float_t scale = x[j - 1] - x[i - 1]; // Scale = IQR
 
-  float_t vsmlsq = pow(eps * iqr, 2);
+  // TODO: Double check if this can enter an infinite loop e.g. when x values
+  // are same (shouldn't happen due to bounds check above)
+  while (scale <= 0) {
+    j = j < (n - 1) ? j + 1 : j;
+    i = i > 0 ? i - 1 : i;
+    scale = x[j] - x[i];
+  }
+
+  float_t vsmlsq = pow(eps * scale, 2);
   size_t jper = iper;
 
   jper = (iper == 2 && (x[0] < 0.0 || x[n] > 1.0)) ? 1 : jper;
@@ -230,8 +251,21 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
   printf("y: %lf, %lf, %lf, %lf, %lf\n", y[0], y[1], y[2], y[3], y[4]);
   // Initial fill of the window
   for (size_t i = 0; i < J; i++) {
+    // Consider changing j to ssize_t since it might move below 0?
+    size_t j = jper == 2 ? i - half_J - 1 : i;
+    // TODO: Tidy up, split out if statement for only the jper == 2 case
+    // j is purely for periodic case, when jper is not 2, j should always == i
+    // and >= 0
+    float_t x_j;
+    if (j >= 0) {
+      x_j = x[j];
+    } else {
+      j = n + j;
+      // Adjust by -1 so x appears close to other points in the window (?)
+      x_j = x[j] - 1.0;
+    }
     // TODO: Determine if it's worthwile to in-line update_stats
-    update_stats(&stats, x[i], y[i], w[i], true);
+    update_stats(&stats, x_j, y[j], w[j], true);
   }
   printf("xm: %lf\n", stats.x_mean);
   printf("ym: %lf\n", stats.y_mean);
@@ -247,10 +281,25 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
     ssize_t out = j - half_J - 1;
     size_t in = j + half_J;
 
-    // TODO: Add additional checks for bounds
+    // TODO: Further tidy up of conditional statements
     if (jper == 2 || (out >= 0 && in < n)) {
-      update_stats(&stats, x[out], y[out], w[out], false);
-      update_stats(&stats, x[in], y[in], w[in], true);
+      float_t x_out;
+      float_t x_in;
+      // Out of bounds checks: only applies when jper == 2
+      if (out < 0) {
+        out = n + out;
+        x_out = x[out] - 1.0;
+        x_in = x[in];
+      } else if (in >= n) {
+        in = in - n;
+        x_out = x[out];
+        x_in = x[in] + 1.0;
+      } else {
+        x_out = x[out];
+        x_in = x[in];
+      }
+      update_stats(&stats, x_out, y[out], w[out], false);
+      update_stats(&stats, x_in, y[in], w[in], true);
       // printf("out: %lu\n", out);
       // printf("in: %lu\n", in);
       // printf("x[out]: %lf\n", x[out]);
@@ -292,8 +341,27 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
 
   printf("smo: %lf, %lf, %lf, %lf, %lf\n", smo[0], smo[1], smo[2], smo[3],
          smo[4]);
+  
+
   // Recompute fitted values smo[j] as weighted mean for non-unique x[.] values:
-  // TODO: Add code to handle same x values
+  for (size_t j = 0; j < n; j++) {
+    size_t j0 = j;
+    float_t sum_y = smo[j] * w[j];
+    float_t sum_weight = w[j];
+
+    while (j < (n - 1) && x[j + 1] <= x[j]) {
+      j = j + 1;
+      sum_y = sum_y + w[j] * smo[j];
+      sum_weight = sum_weight + w[j];
+    }
+    if (j > j0) {
+      float_t a = sum_weight > 0 ? sum_y / sum_weight : 0;
+      for (size_t i = j0; i < j; i++) {
+        smo[i] = a;
+      }
+    }
+  }
+
 }
 
 void update_stats(RunningStats *stats, float_t x, float_t y, float_t weight,
