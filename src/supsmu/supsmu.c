@@ -13,97 +13,36 @@
     _a > _b ? _a : _b;                                                         \
   })
 
-const char *get_field(char *line, int num) {
-  const char *tok;
-  for (tok = strtok(line, ","); tok && *tok; tok = strtok(NULL, ",\n")) {
-    if (!--num) {
-      return tok;
-    }
-  }
-  return NULL;
-}
+void smooth(size_t n, float *x, float *y, float *w, float span, int iper,
+            float vsmlsq, float *smo, float *acvr);
 
-void read_csv(char *file_name, float_t *x, float_t *y) {
-  FILE *fp = fopen(file_name, "r");
-  if (fp == NULL) {
-    printf("File %s could not be opened for reading.", file_name);
-    exit(EXIT_FAILURE);
-  }
-  char line[1024];
-  size_t i = 0;
-  while (fgets(line, 1024, fp)) {
-    char *tmp_x = strdup(line);
-    char *tmp_y = strdup(line);
-    if (i == 0) {
-      i++;
-      continue;
-    }
-    x[i - 1] = strtof(get_field(tmp_x, 1), NULL);
-    y[i - 1] = strtof(get_field(tmp_y, 2), NULL);
-    i++;
-    free(tmp_x);
-    free(tmp_y);
-  }
-  fclose(fp);
-}
-
-void write_csv(char *file_name, float_t **data, char *col_names,
-               size_t num_cols, size_t num_rows, bool row_major) {
-  FILE *fp = fopen(file_name, "w");
-  if (fp == NULL) {
-    printf("File %s could not be opened for writing.", file_name);
-    exit(EXIT_FAILURE);
-  }
-  if (row_major) {
-    fprintf(fp, "%s\n", col_names);
-    for (size_t i = 0; i < num_rows; i++) {
-      for (size_t j = 0; j < (num_cols - 1); j++) {
-        fprintf(fp, "%lf,", data[i][j]);
-      }
-      fprintf(fp, "%lf", data[i][num_cols - 1]);
-      fprintf(fp, "\n");
-    }
-  } else {
-    fprintf(fp, "%s\n", col_names);
-    for (size_t i = 0; i < num_rows; i++) {
-      for (size_t j = 0; j < (num_cols - 1); j++) {
-        fprintf(fp, "%lf,", data[j][i]);
-      }
-      fprintf(fp, "%lf", data[num_cols - 1][i]);
-      fprintf(fp, "\n");
-    }
-  }
-}
-
-void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
-            int iper, float_t vsmlsq, float_t *smo, float_t *acvr);
-
-void update_stats(RunningStats *stats, float_t x, float_t y, float_t weight,
+void update_stats(RunningStats *stats, float x, float y, float weight,
                   bool adding);
 
-void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
-            float_t span, float_t bass, float_t *smo);
+void supsmu(size_t n, float *x, float *y, float *w, int iper, float span,
+            float bass, float *smo);
 
 // TODO: Refactor iper to be a boolean and add another flag for negative iper
-void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
-            float_t span, float_t alpha, float_t *smo) {
+void supsmu(size_t n, float *x, float *y, float *w, int iper, float span,
+            float alpha, float *smo) {
   // Change sc to an array of structs containing 7 fields?
   // -- No, because sometimes we loop over n
-  // -- Or perhaps do struct of 7 arrays? -- GOOD since Fortran arrays in col-major order
-  float_t *sc = calloc(n * 7, sizeof(float_t));
-  float_t spans[3] = {0.05, 0.2, 0.5};
-  float_t small = 1.0e-7;
-  float_t eps = 1.0e-3;
+  // -- Or perhaps do struct of 7 arrays? -- GOOD since Fortran arrays in
+  // col-major order
+  float *sc = calloc(n * 7, sizeof(float));
+  float spans[3] = {0.05, 0.2, 0.5};
+  float small = 1.0e-7;
+  float eps = 1.0e-3;
 
   // Edge case: smoothed values as weighted mean of y
   if (x[n - 1] <= x[0]) {
-    float_t sum_y = 0;
-    float_t sum_w = 0;
+    float sum_y = 0;
+    float sum_w = 0;
     for (size_t j = 0; j < n; j++) {
       sum_y = sum_y + w[j] * y[j];
       sum_w = sum_w + w[j];
     }
-    float_t a = sum_w > 0 ? a = sum_y / sum_w : 0;
+    float a = sum_w > 0 ? a = sum_y / sum_w : 0;
     for (size_t j = 0; j < n; j++) {
       smo[j] = a;
     }
@@ -113,7 +52,7 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
   size_t i = n / 4; // Q1
   size_t j = 3 * i; // Q3
   // Offset by 1 to account for 0 based indexing
-  float_t scale = x[j - 1] - x[i - 1]; // Scale = IQR
+  float scale = x[j - 1] - x[i - 1]; // Scale = IQR
 
   // TODO: Double check if this can enter an infinite loop e.g. when x values
   // are same (shouldn't happen due to bounds check above)
@@ -123,7 +62,7 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
     scale = x[j] - x[i];
   }
 
-  float_t vsmlsq = pow(eps * scale, 2);
+  float vsmlsq = pow(eps * scale, 2);
   size_t jper = iper;
 
   jper = (iper == 2 && (x[0] < 0.0 || x[n] > 1.0)) ? 1 : jper;
@@ -150,12 +89,6 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
     col = 2 * i;
     smooth(n, x, y, w, spans[i], jper, vsmlsq, &sc[col * n + row],
            &sc[6 * n + row]);
-    // printf("y: %lf, %lf, %lf, %lf, %lf\n", y[0], y[1], y[2], y[3], y[4]);
-    // printf("sc[6 * n + row]: %lf, %lf, %lf, %lf, %lf\n", (&sc[6 * n +
-    // row])[0],
-    //        (&sc[6 * n + row])[1], (&sc[6 * n + row])[2], (&sc[6 * n +
-    //        row])[3],
-    //        (&sc[6 * n + row])[4]);
     col = 2 * i + 1;
     // NULL since h should not be used in this second pass
     smooth(n, x, &sc[6 * n + row], w, spans[1], -jper, vsmlsq,
@@ -164,10 +97,10 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
 
   // Find optimal spans
   for (size_t j = 0; j < n; j++) {
-    // Perhaps change all float_t types to double, as technically float_t could
+    // Perhaps change all float types to double, as technically float could
     // be double in which case FLT_MAX would be smaller than max value of
-    // float_t.
-    float_t resmin = FLT_MAX;
+    // float.
+    float resmin = FLT_MAX;
 
     // Find spans with lowest residuals
     row = j;
@@ -190,12 +123,6 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
     }
   }
 
-  // printf("sc[6 * n + 0]: %lf, %lf, %lf, %lf, %lf\n", (&sc[6 * n + 0])[0],
-  //        (&sc[6 * n + 0])[1], (&sc[6 * n + 0])[2], (&sc[6 * n + 0])[3],
-  //        (&sc[6 * n + 0])[4]);
-  // printf("sc[6 * n + 0]: %lf, %lf, %lf, %lf, %lf\n", (&sc[1 * n + 0])[0],
-  //        (&sc[1 * n + 0])[1], (&sc[1 * n + 0])[2], (&sc[1 * n + 0])[3],
-  //        (&sc[1 * n + 0])[4]);
   // Smooth spans
   smooth(n, x, &sc[6 * n + 0], w, spans[1], -jper, vsmlsq, &sc[1 * n + 0],
          NULL);
@@ -209,8 +136,7 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
     if (sc[1 * n + row] >= spans[2]) {
       sc[1 * n + row] = spans[2];
     }
-    float_t f = sc[1 * n + row] - spans[1];
-    printf("f: %lf", f);
+    float f = sc[1 * n + row] - spans[1];
     if (f >= 0.0) {
       f = f / (spans[2] - spans[1]);
       // Index 2 - midrange, Index 0 - tweeter
@@ -225,8 +151,8 @@ void supsmu(size_t n, float_t *x, float_t *y, float_t *w, int iper,
   smooth(n, x, &sc[3 * n + 0], w, spans[0], -jper, vsmlsq, smo, NULL);
 }
 
-void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
-            int iper, float_t vsmlsq, float_t *smo, float_t *acvr) {
+void smooth(size_t n, float *x, float *y, float *w, float span, int iper,
+            float vsmlsq, float *smo, float *acvr) {
   // w: weights or arange(1, n)
   // TODO: iper SHOULD BE BOOL
   // iper: periodic variable flag
@@ -248,7 +174,6 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
 
   RunningStats stats = {0};
 
-  printf("y: %lf, %lf, %lf, %lf, %lf\n", y[0], y[1], y[2], y[3], y[4]);
   // Initial fill of the window
   for (size_t i = 0; i < J; i++) {
     // Consider changing j to ssize_t since it might move below 0?
@@ -256,7 +181,7 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
     // TODO: Tidy up, split out if statement for only the jper == 2 case
     // j is purely for periodic case, when jper is not 2, j should always == i
     // and >= 0
-    float_t x_j;
+    float x_j;
     if (j >= 0) {
       x_j = x[j];
     } else {
@@ -267,10 +192,6 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
     // TODO: Determine if it's worthwile to in-line update_stats
     update_stats(&stats, x_j, y[j], w[j], true);
   }
-  printf("xm: %lf\n", stats.x_mean);
-  printf("ym: %lf\n", stats.y_mean);
-  printf("var: %lf\n", stats.variance);
-  printf("cvar: %lf\n", stats.covariance);
 
   // Main smoothing loop
   for (size_t j = 0; j < n; j++) {
@@ -283,8 +204,8 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
 
     // TODO: Further tidy up of conditional statements
     if (jper == 2 || (out >= 0 && in < n)) {
-      float_t x_out;
-      float_t x_in;
+      float x_out;
+      float x_in;
       // Out of bounds checks: only applies when jper == 2
       if (out < 0) {
         out = n + out;
@@ -300,19 +221,10 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
       }
       update_stats(&stats, x_out, y[out], w[out], false);
       update_stats(&stats, x_in, y[in], w[in], true);
-      // printf("out: %lu\n", out);
-      // printf("in: %lu\n", in);
-      // printf("x[out]: %lf\n", x[out]);
-      // printf("x[in]: %lf\n", x[in]);
-      // printf("xm: %lf\n", stats.x_mean);
-      // printf("ym: %lf\n", stats.y_mean);
-      // printf("var: %lf\n", stats.variance);
-      // printf("cvar: %lf\n", stats.covariance);
-      // exit(EXIT_FAILURE);
     }
 
     // TODO: Rename to something more reasonable
-    float_t a = 0.0;
+    float a = 0.0;
     // TODO: Figure out what is vsmlsq?
     if (stats.variance > vsmlsq) {
       a = stats.covariance / stats.variance;
@@ -323,7 +235,7 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
     // This is calculating the cross validation residual for each point
     // Smaller CV values => better fit
     if (iper > 0 && acvr != NULL) {
-      float_t h = 0;
+      float h = 0;
       h = stats.sum_weight > 0 ? 1.0 / stats.sum_weight : h;
       h = stats.variance > vsmlsq
               ? h + pow((x[j] - stats.x_mean), 2) / stats.variance
@@ -339,15 +251,11 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
     }
   }
 
-  printf("smo: %lf, %lf, %lf, %lf, %lf\n", smo[0], smo[1], smo[2], smo[3],
-         smo[4]);
-  
-
   // Recompute fitted values smo[j] as weighted mean for non-unique x[.] values:
   for (size_t j = 0; j < n; j++) {
     size_t j0 = j;
-    float_t sum_y = smo[j] * w[j];
-    float_t sum_weight = w[j];
+    float sum_y = smo[j] * w[j];
+    float sum_weight = w[j];
 
     while (j < (n - 1) && x[j + 1] <= x[j]) {
       j = j + 1;
@@ -355,20 +263,19 @@ void smooth(size_t n, float_t *x, float_t *y, float_t *w, float_t span,
       sum_weight = sum_weight + w[j];
     }
     if (j > j0) {
-      float_t a = sum_weight > 0 ? sum_y / sum_weight : 0;
+      float a = sum_weight > 0 ? sum_y / sum_weight : 0;
       for (size_t i = j0; i < j; i++) {
         smo[i] = a;
       }
     }
   }
-
 }
 
-void update_stats(RunningStats *stats, float_t x, float_t y, float_t weight,
+void update_stats(RunningStats *stats, float x, float y, float weight,
                   bool adding) {
   // Adding: adding or removing points to/from window
 
-  float_t sum_weight_original = stats->sum_weight;
+  float sum_weight_original = stats->sum_weight;
 
   if (adding) {
     stats->sum_weight += weight;
@@ -391,7 +298,7 @@ void update_stats(RunningStats *stats, float_t x, float_t y, float_t weight,
     }
   }
 
-  float_t tmp = 0;
+  float tmp = 0;
   // sum_weight_original = 0 for the initial point, since variance is
   // 0 for a single vale
   if (sum_weight_original > 0) {
