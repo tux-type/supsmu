@@ -1,0 +1,4 @@
+include src/supsmu/supsmu.h
+include README.md
+global-include *.pyx
+global-include *.pxd
