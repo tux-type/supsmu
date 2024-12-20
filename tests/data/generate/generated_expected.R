@@ -10,7 +10,8 @@ supsmu_expected <- function(file_name) {
   write.csv(data, file=file_name, row.names=FALSE)
 }
 
-supsmu_expected("./tests/data/test_sin.csv")
-supsmu_expected("./tests/data/test_mixed_freq_sin.csv")
-supsmu_expected("./tests/data/test_mixed_noise_sin.csv")
-supsmu_expected("./tests/data/test_complex_sin.csv")
+supsmu_expected("./tests/data/test_sin_periodic.csv")
+supsmu_expected("./tests/data/test_complex_sin_periodic.csv")
+
+supsmu_expected("./tests/data/test_sin_aperiodic.csv")
+supsmu_expected("./tests/data/test_complex_sin_aperiodic.csv")
