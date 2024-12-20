@@ -42,34 +42,26 @@ def generate_complex_sin(seed=9345, periodic=True, save=False):
     np.random.seed(seed)
     n = 1000
     x = np.sort(np.random.uniform(0, 1, n))
-    y = np.zeros_like(x)
 
-    # Low freq
     mask1 = x < 0.3
-    cycles1 = 2
-    y[mask1] = np.sin(cycles1 * 2 * np.pi * x[mask1])
-
-    # High freq
     mask2 = (x >= 0.3) & (x < 0.6)
-    cycles2 = 5
-    y[mask2] = np.sin(cycles2 * 2 * np.pi * x[mask2])
-
-    # Mix freq
     mask3 = x >= 0.6
-    y[mask3] = np.sin(cycles1 * 2 * np.pi * x[mask3]) + np.sin(
-        cycles2 * 2 * np.pi * x[mask3]
-    )
 
-    # Add linear trend
-    if not periodic:
-        y = y + 2 * x
+    if periodic:
+        y = np.sin(2 * np.pi * x)
+    else:
+        y = np.zeros_like(x)
+        cycles1, cycles2 = 2, 5
+        y[mask1] = np.sin(cycles1 * 2 * np.pi * x[mask1])  # Lower freq.
+        y[mask2] = np.sin(cycles2 * 2 * np.pi * x[mask2])  # Higher freq.
+        y[mask3] = np.sin(cycles1 * 2 * np.pi * x[mask3]) + np.sin(
+            cycles2 * 2 * np.pi * x[mask3]
+        )  # Mix freq
+        y = y + 2 * x  # Add linear trend
 
     noise = np.zeros_like(y)
-    # Low noise
     noise[mask1] = np.random.normal(0, 0.05, sum(mask1))
-    # High noise
     noise[mask2] = np.random.normal(0, 0.15, sum(mask2))
-    # Medium noise
     noise[mask3] = np.random.normal(0, 0.1, sum(mask3))
 
     y_noisy = y + noise
@@ -100,7 +92,7 @@ def main():
     generate_complex_sin(periodic=True, save=True)
     generate_sin(periodic=False, save=True)
     generate_complex_sin(periodic=False, save=True)
-    # generate_x_repeated(save=True)
+    generate_x_repeated(save=True)
 
 
 if __name__ == "__main__":
