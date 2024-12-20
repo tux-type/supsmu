@@ -83,8 +83,42 @@ def generate_complex_sin(seed=9345, periodic=True, save=False):
     return x, y, y_noisy, y_smooth
 
 
-def generate_x_repeated(save=False):
-    pass
+def generate_all_x_same(seed=9345, save=False):
+    np.random.seed(seed)
+    n = 100
+    x = np.ones(n, dtype=np.float32)
+    y_noisy = np.random.uniform(low=0, high=2, size=n)
+
+    if save:
+        arr = np.asarray([x, y_noisy, y_noisy]).T
+        np.savetxt(
+            "tests/data/test_all_x_same.csv",
+            X=arr,
+            delimiter=",",
+            newline="\n",
+            comments="",
+            header="x,y,y_noisy",
+        )
+
+
+def generate_some_x_same(seed=9345, save=False):
+    np.random.seed(seed)
+    n = 100
+    x = np.sort(np.round(np.random.uniform(0, 1, n)))
+    y = np.sin(2 * np.pi * x)
+
+    y_noisy = y + np.random.normal(0, 0.15, n)
+
+    if save:
+        arr = np.asarray([x, y, y_noisy]).T
+        np.savetxt(
+            "tests/data/test_some_x_same.csv",
+            X=arr,
+            delimiter=",",
+            newline="\n",
+            comments="",
+            header="x,y,y_noisy",
+        )
 
 
 def main():
@@ -92,7 +126,8 @@ def main():
     generate_complex_sin(periodic=True, save=True)
     generate_sin(periodic=False, save=True)
     generate_complex_sin(periodic=False, save=True)
-    generate_x_repeated(save=True)
+    generate_all_x_same(save=True)
+    generate_some_x_same(save=True)
 
 
 if __name__ == "__main__":
