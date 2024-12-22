@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def generate_sine(size, periodic=True):
+def generate_sine(size, periodic):
     """
     Generate test data with single frequency, evenly spaced, uniform noise sine wave.
     """
@@ -19,7 +19,7 @@ def generate_sine(size, periodic=True):
     return x, y_noisy, periodic
 
 
-def generate_complex_sine(size, periodic=True):
+def generate_complex_sine(size, periodic):
     """
     Generate test data with mixed frequency, unevenly spaced sine wave with mixed noise.
     """
