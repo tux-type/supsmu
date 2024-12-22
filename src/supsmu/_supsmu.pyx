@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 cimport numpy as np
 
@@ -11,30 +13,12 @@ cdef extern from "supsmu.h":
                 float span, float bass, float *smo)
 
 
-# def supersmoother(np.ndarray[DTYPE_t, ndim=1] arr):
-#     n = np.shape[0]
-#     y = np.zeros(n)
-#     w = np.ones(n)
-#     iper = 1
-#     span = 0.0
-#     bass = 0
-#     smo = np.zeros(n)
-#     if not arr.flags["C_CONTIGUOUS"]:
-#         arr = np.ascontiguousarray(arr, dtype=DTYPE)
-#
-#     # TODO: Check if the nogil is actually needed
-#     supsmu(n, <float*>arr.data, <float*>y.data, <float*>w.data, iper, span, bass, <float*>smo.data)
-#
-#     return smo
-
-
-def supsmu(np.ndarray[DTYPE_t, ndim=1] x, np.ndarray[DTYPE_t, ndim=1] y):
-# def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
-#           np.ndarray[DTYPE_t, ndim=1] y,
-#           np.ndarray[DTYPE_t, ndim=1] w,
-#           int iper,
-#           float span,
-#           float bass):
+def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
+           np.ndarray[DTYPE_t, ndim=1] y,
+           np.ndarray[DTYPE_t, ndim=1] wt=None,
+           float span=0,
+           bool periodic=False,
+           float bass=0):
     """
     Python wrapper for supsmu function.
     
@@ -42,45 +26,69 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x, np.ndarray[DTYPE_t, ndim=1] y):
         x: np.ndarray[float32] - x values
         y: np.ndarray[float32] - y values
         w: np.ndarray[float32] - weights
-        iper: int - periodicity flag
         span: float - smoothing span
+        periodic: bool - periodicity flag
         bass: float - bass enhancement
     
     Returns:
         np.ndarray[float32] - smoothed values
     """
-    nn = x.shape[0]
-    # w = np.ones(nn)
-    iper = 1
-    span = 0.0
-    bass = 0
+    if span < 0 or span > 1:
+        raise ValueError("Span should be between 0 and 1.")
 
+    if not np.all(np.issubdtype(x.dtype, np.number), np.issubdtype(y.dtype, np.number)):
+        raise ValueError("x and y should be numeric arrays")
 
+    size = y.shape[0]
+
+    if x.shape[0] != size:
+        raise ValueError("x and y arrays should be the same length")
+    if wt.shape[0] != size:
+        raise ValueError("weight and y arrays should be the same length")
+
+    if periodic:
+        iper = 2
+        if x.min() < 0 or x.max() > 1:
+            raise ValueError("x must be between 0 and 1 when periodic")
+    else:
+        iper = 1
     
-    if x.shape[0] != y.shape[0]:
-        raise ValueError("Arrays x, y, and w must have the same length")
-    # if x.shape[0] != y.shape[0] or x.shape[0] != w.shape[0]:
-    #     raise ValueError("Arrays x, y, and w must have the same length")
     
     # Ensure arrays are contiguous
     x = np.ascontiguousarray(x, dtype=DTYPE)
     y = np.ascontiguousarray(y, dtype=DTYPE)
-    # w = np.ascontiguousarray(w, dtype=DTYPE)
 
-    # Create w array
-    cdef np.ndarray[DTYPE_t, ndim=1] w = np.ones(nn, dtype=DTYPE)
-    
+    if wt is None:
+        cdef np.ndarray[DTYPE_t, ndim=1] w = np.ones(size, dtype=DTYPE)
+    elif not np.issubdtype(wt.dtype, np.number):
+        raise ValueError("wt should be a numeric array")
+    else:
+        wt = np.ascontiguousarray(w, dtype=DTYPE)
+
     # Create output array
     cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x, dtype=DTYPE)
-    
-    # Get the size
-    cdef size_t n = x.shape[0]
-    
+  
+    cdef size_t n = size
+
+    finite = np.isfinite(x) & np.isfinite(y) & np.isfinite(wt)
+    if not np.any(finite):
+        raise ValueError("x, y, and wt must have some finite observations (not nan or inf)")
+    elif not np.all(finite):
+        warnings.warn(f"Warning: dropped {size - sum(finite)} non-finite observaitons")
+        finite_idx = np.where(finite)
+        x = x[finite_idx]
+        y = y[finite_idx]
+        wt = wt[finite_idx]
+
+    cdef size_t n = y.shape[0]
+
+    # TODO: Cast to np.float64
+
     # Call the C function
     c_supsmu(n,
            <float*>x.data,
            <float*>y.data,
-           <float*>w.data,
+           <float*>wt.data,
            iper,
            span,
            bass,
