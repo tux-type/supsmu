@@ -28,7 +28,7 @@ def compare_supsmus(x, y, periodic, kwargs):
     "kwargs",
     [
         {"wt": np.random.uniform(0, 1, size=1000)},
-        {"span": 5},
+        {"span": 0.15},
         {"bass": 8},
     ],
 )
