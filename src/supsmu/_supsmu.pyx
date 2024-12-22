@@ -15,9 +15,9 @@ cdef extern from "supsmu.h":
 
 def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
            np.ndarray[DTYPE_t, ndim=1] y,
-           np.ndarray[DTYPE_t, ndim=1] wt=None,
+           object wt=None,
            float span=0,
-           bool periodic=False,
+           bint periodic=False,
            float bass=0):
     """
     Python wrapper for supsmu function.
@@ -33,18 +33,13 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
     Returns:
         np.ndarray[float32] - smoothed values
     """
+
     if span < 0 or span > 1:
         raise ValueError("Span should be between 0 and 1.")
 
     if not np.all(np.issubdtype(x.dtype, np.number), np.issubdtype(y.dtype, np.number)):
         raise ValueError("x and y should be numeric arrays")
 
-    size = y.shape[0]
-
-    if x.shape[0] != size:
-        raise ValueError("x and y arrays should be the same length")
-    if wt.shape[0] != size:
-        raise ValueError("weight and y arrays should be the same length")
 
     if periodic:
         iper = 2
@@ -53,32 +48,42 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
     else:
         iper = 1
     
+    size = y.shape[0]
     
+
     # Ensure arrays are contiguous
     x = np.ascontiguousarray(x, dtype=DTYPE)
     y = np.ascontiguousarray(y, dtype=DTYPE)
 
+    # C type for wt_arr array
+    cdef np.ndarray[DTYPE_t, ndim=1] wt_arr
+
     if wt is None:
-        cdef np.ndarray[DTYPE_t, ndim=1] w = np.ones(size, dtype=DTYPE)
+        wt_arr = np.ones(size, dtype=DTYPE)
     elif not np.issubdtype(wt.dtype, np.number):
-        raise ValueError("wt should be a numeric array")
+        raise ValueError("wt_arr should be a numeric array")
     else:
-        wt = np.ascontiguousarray(w, dtype=DTYPE)
+        wt_arr = np.ascontiguousarray(wt, dtype=DTYPE)
+
+    if x.shape[0] != size:
+        raise ValueError("x and y arrays should be the same length")
+    if wt_arr.shape[0] != size:
+        raise ValueError("weight and y arrays should be the same length")
+
 
     # Create output array
     cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x, dtype=DTYPE)
   
-    cdef size_t n = size
 
-    finite = np.isfinite(x) & np.isfinite(y) & np.isfinite(wt)
+    finite = np.isfinite(x) & np.isfinite(y) & np.isfinite(wt_arr)
     if not np.any(finite):
-        raise ValueError("x, y, and wt must have some finite observations (not nan or inf)")
+        raise ValueError("x, y, and wt_arr must have some finite observations (not nan or inf)")
     elif not np.all(finite):
         warnings.warn(f"Warning: dropped {size - sum(finite)} non-finite observaitons")
         finite_idx = np.where(finite)
         x = x[finite_idx]
         y = y[finite_idx]
-        wt = wt[finite_idx]
+        wt_arr = wt_arr[finite_idx]
 
     cdef size_t n = y.shape[0]
 
@@ -88,7 +93,7 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
     c_supsmu(n,
            <float*>x.data,
            <float*>y.data,
-           <float*>wt.data,
+           <float*>wt_arr.data,
            iper,
            span,
            bass,
