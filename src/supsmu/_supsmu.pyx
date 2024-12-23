@@ -37,7 +37,7 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
     if span < 0 or span > 1:
         raise ValueError("Span should be between 0 and 1.")
 
-    if not np.all(np.issubdtype(x.dtype, np.number), np.issubdtype(y.dtype, np.number)):
+    if not all([np.issubdtype(x.dtype, np.number), np.issubdtype(y.dtype, np.number)]):
         raise ValueError("x and y should be numeric arrays")
 
 
@@ -89,7 +89,6 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
 
     # TODO: Cast to np.float64
 
-    # Call the C function
     c_supsmu(n,
            <float*>x.data,
            <float*>y.data,
