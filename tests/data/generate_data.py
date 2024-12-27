@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 
@@ -23,7 +24,7 @@ def generate_complex_sine(size, periodic):
     """
     Generate test data with mixed frequency, unevenly spaced sine wave with mixed noise.
     """
-    x = np.sort(np.random.uniform(0, 1, size))
+    x = np.sort(np.random.uniform(0, 1, size)).astype(np.float32)
 
     mask1 = x < 0.3
     mask2 = (x >= 0.3) & (x < 0.6)
@@ -47,7 +48,7 @@ def generate_complex_sine(size, periodic):
     noise[mask3] = np.random.normal(0, 0.1, sum(mask3))
 
     y_noisy = y + noise
-    y_noisy.astype(np.float32)
+    y_noisy = y_noisy.astype(np.float32)
 
     return x, y_noisy, periodic
 
@@ -69,10 +70,10 @@ def generate_some_x_same(size):
 
 def generate_test_arrays(size=1000):
     return [
-        generate_sine(size=size, periodic=True),
-        generate_complex_sine(size=size, periodic=True),
-        generate_sine(size=size, periodic=False),
-        generate_complex_sine(size=size, periodic=False),
+        pytest.param(*generate_sine(size=size, periodic=True), id="periodic-sine"),
+        pytest.param(*generate_complex_sine(size=size, periodic=True), id="periodic-complex"),
+        pytest.param(*generate_sine(size=size, periodic=False), id="aperiodic-sine"),
+        pytest.param(*generate_complex_sine(size=size, periodic=False), id="aperiodic-complex"),
     ]
 
 
