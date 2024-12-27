@@ -70,12 +70,22 @@ def generate_some_x_same(size):
 
 def generate_test_arrays(size=1000):
     return [
-        pytest.param(*generate_sine(size=size, periodic=True), id="periodic-sine"),
-        pytest.param(*generate_complex_sine(size=size, periodic=True), id="periodic-complex"),
-        pytest.param(*generate_sine(size=size, periodic=False), id="aperiodic-sine"),
-        pytest.param(*generate_complex_sine(size=size, periodic=False), id="aperiodic-complex"),
-    ]
+        pytest.param(generate_sine(size=size, periodic=True), id="periodic-sine"),
+        pytest.param(generate_complex_sine(size=size, periodic=True), id="periodic-complex"),
+        pytest.param(generate_sine(size=size, periodic=False), id="aperiodic-sine"),
+        pytest.param(generate_complex_sine(size=size, periodic=False), id="aperiodic-complex"),
+    ]  # fmt: skip
 
 
 def generate_test_edge_arrays(size=100):
     return [generate_all_x_same(size=size), generate_some_x_same(size=size)]
+
+
+@pytest.fixture(params=generate_test_arrays())
+def test_data(request):
+    return request.param
+
+
+@pytest.fixture(params=generate_test_edge_arrays())
+def test_edge_data(request):
+    return request.param
