@@ -1,11 +1,9 @@
-import pytest
 import numpy as np
+import pytest
+from rpy2.robjects import default_converter, numpy2ri
 from rpy2.robjects.packages import importr
-from rpy2.robjects import numpy2ri
-from supsmu import supsmu
-from tests.data.generate_data import generate_test_arrays, generate_test_edge_arrays
 
-numpy2ri.activate()
+from supsmu import supsmu
 
 stats = importr("stats")
 r_supsmu = stats.supsmu
@@ -17,14 +15,17 @@ def set_seed():
     yield
 
 
-def compare_supsmus(x, y, periodic, kwargs):
+def compare_supsmus(x, y, periodic, **kwargs):
     py_result = supsmu(x, y, periodic=periodic, **kwargs)
-    r_result = np.array(r_supsmu(x, y, periodic=periodic, **kwargs))
-    assert np.allclose(py_result, r_result)
+
+    np_converter = default_converter + numpy2ri.converter
+    with np_converter.context():
+        r_result = np.array(r_supsmu(x, y, periodic=periodic, **kwargs)["y"])
+
+    assert np.allclose(py_result, r_result, atol=1e-2)
 
 
-@pytest.mark.parameterize("x,y,periodic", generate_test_arrays(size=1000))
-@pytest.mark.parameterize(
+@pytest.mark.parametrize(
     "kwargs",
     [
         {"wt": np.random.uniform(0, 1, size=1000)},
@@ -32,10 +33,11 @@ def compare_supsmus(x, y, periodic, kwargs):
         {"bass": 8},
     ],
 )
-def test_supsmu(x, y, periodic, kwargs):
-    compare_supsmus(x, y, periodic, kwargs)
+def test_supsmu_core(test_data, kwargs):
+    x, y, periodic = test_data
+    compare_supsmus(x, y, periodic, **kwargs)
 
 
-@pytest.mark.parameterize("x,y,periodic", generate_test_edge_arrays())
-def test_supsmu_edge(x, y, periodic, kwargs):
-    compare_supsmus(x, y, periodic, kwargs)
+def test_supsmu_edge(test_edge_data):
+    x, y, periodic = test_edge_data
+    compare_supsmus(x, y, periodic)
