@@ -79,7 +79,10 @@ def generate_test_arrays(size=1000):
 
 
 def generate_test_edge_arrays(size=100):
-    return [generate_all_x_same(size=size), generate_some_x_same(size=size)]
+    return [
+        pytest.param(generate_all_x_same(size=size), id="all-x-same"),
+        pytest.param(generate_some_x_same(size=size), id="some-x-same"),
+    ]
 
 
 @pytest.fixture(params=generate_test_arrays())
