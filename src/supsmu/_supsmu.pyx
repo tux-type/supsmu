@@ -89,13 +89,15 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
 
     # TODO: Cast to np.float64
 
-    c_supsmu(n,
-           <float*>x.data,
-           <float*>y.data,
-           <float*>wt_arr.data,
-           iper,
-           span,
-           bass,
-           <float*>smo.data)
+    c_supsmu(
+        n,
+        <float*>x.data,
+        <float*>y.data,
+        <float*>wt_arr.data,
+        iper,
+        span,
+        bass,
+        <float*>smo.data
+    )
     
     return smo
