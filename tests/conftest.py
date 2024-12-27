@@ -55,16 +55,17 @@ def generate_complex_sine(size, periodic):
 
 def generate_all_x_same(size):
     x = np.ones(size, dtype=np.float32)
-    y_noisy = np.random.uniform(low=0, high=2, size=size)
+    y_noisy = np.random.uniform(low=0, high=2, size=size).astype(np.float32)
 
     return x, y_noisy, False
 
 
 def generate_some_x_same(size):
-    x = np.sort(np.round(np.random.uniform(0, 1, size)))
+    x = np.sort(np.round(np.random.uniform(0, 1, size))).astype(np.float32)
     y = np.sin(2 * np.pi * x)
 
     y_noisy = y + np.random.normal(0, 0.15, size)
+    y_noisy = y_noisy.astype(np.float32)
     return x, y_noisy, False
 
 
