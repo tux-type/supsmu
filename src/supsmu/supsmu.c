@@ -73,7 +73,6 @@ void supsmu(size_t n, float *x, float *y, float *w, int iper, float span,
   //
   if (span > 0.0) {
     // Call with full scratch memory size
-    printf("Smoothing with a set span, not CV!");
     smooth(n, x, y, w, span, jper, vsmlsq, smo, sc);
     return;
   }
@@ -149,6 +148,8 @@ void supsmu(size_t n, float *x, float *y, float *w, int iper, float span,
   }
 
   smooth(n, x, &sc[3 * n + 0], w, spans[0], -jper, vsmlsq, smo, NULL);
+
+  free(sc);
 }
 
 void smooth(size_t n, float *x, float *y, float *w, float span, int iper,
@@ -176,8 +177,7 @@ void smooth(size_t n, float *x, float *y, float *w, float span, int iper,
 
   // Initial fill of the window
   for (size_t i = 0; i < J; i++) {
-    // Consider changing j to ssize_t since it might move below 0?
-    size_t j = jper == 2 ? i - half_J - 1 : i;
+    ssize_t j = jper == 2 ? i - half_J - 1 : i;
     // TODO: Tidy up, split out if statement for only the jper == 2 case
     // j is purely for periodic case, when jper is not 2, j should always == i
     // and >= 0
@@ -264,7 +264,7 @@ void smooth(size_t n, float *x, float *y, float *w, float span, int iper,
     }
     if (j > j0) {
       float a = sum_weight > 0 ? sum_y / sum_weight : 0;
-      for (size_t i = j0; i < j; i++) {
+      for (size_t i = j0; i <= j; i++) {
         smo[i] = a;
       }
     }
