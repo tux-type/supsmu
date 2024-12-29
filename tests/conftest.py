@@ -63,7 +63,7 @@ def generate_all_x_same(size):
 
 
 def generate_some_x_same(size):
-    x = np.sort(np.round(np.random.uniform(0, 1, size))).astype(np.float32)
+    x = np.sort(np.round(np.random.uniform(0, 1, size), decimals=2)).astype(np.float32)
     y = np.sin(2 * np.pi * x)
 
     y_noisy = y + np.random.normal(0, 0.15, size)
