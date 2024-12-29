@@ -1,5 +1,7 @@
-import pytest
 import numpy as np
+import pytest
+
+np.random.seed(9345)
 
 
 def generate_sine(size, periodic):

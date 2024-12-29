@@ -14,10 +14,6 @@ stats = importr("stats")
 r_supsmu = stats.supsmu
 
 
-@pytest.fixture(autouse=True)
-def set_seed():
-    np.random.seed(9345)
-    yield
 
 
 def compare_supsmus(x, y, periodic, **kwargs):
