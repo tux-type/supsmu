@@ -264,7 +264,7 @@ void smooth(size_t n, float *x, float *y, float *w, float span, int iper,
     }
     if (j > j0) {
       float a = sum_weight > 0 ? sum_y / sum_weight : 0;
-      for (size_t i = j0; i < j; i++) {
+      for (size_t i = j0; i <= j; i++) {
         smo[i] = a;
       }
     }
