@@ -19,6 +19,10 @@ r_supsmu = stats.supsmu
 def compare_supsmus(x, y, periodic, **kwargs):
     py_result = supsmu(x, y, periodic=periodic, **kwargs)
 
+    # Replicate deduplication
+    _, unique_idx = np.unique(x, return_index=True)
+    py_result = py_result[unique_idx]
+
     np_converter = default_converter + numpy2ri.converter
     with np_converter.context():
         r_result = np.array(r_supsmu(x, y, periodic=periodic, **kwargs)["y"])
