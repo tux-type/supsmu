@@ -4,32 +4,32 @@
 #pragma once
 
 typedef struct RunningStats {
-  float x_mean;
-  float y_mean;
-  float variance;
-  float covariance;
-  float sum_weight;
+  double x_mean;
+  double y_mean;
+  double variance;
+  double covariance;
+  double sum_weight;
 } RunningStats;
 
 typedef struct SmoothState {
   // 0
-  float y_tweeter;
+  double y_tweeter;
   // 1
-  float residual_tweeter;
+  double residual_tweeter;
   // 2
-  float y_midrange;
+  double y_midrange;
   // 3
-  float residual_midrange;
+  double residual_midrange;
   // 4
-  float y_woofer;
+  double y_woofer;
   // 5
-  float residual_woofer;
+  double residual_woofer;
   // 6
-  float residual;
+  double residual;
 } SmoothState;
 
-void supsmu(size_t n, float *x, float *y, float *w, int iper,
-            float span, float bass, float *smo);
-void write_csv(char *file_name, float **data, char *col_names,
+void supsmu(size_t n, double *x, double *y, double *w, int iper,
+            double span, double bass, double *smo);
+void write_csv(char *file_name, double **data, char *col_names,
                size_t num_cols, size_t num_rows, bool row_major);
-void read_csv(char *file_name, float *x, float *y);
+void read_csv(char *file_name, double *x, double *y);
