@@ -241,7 +241,6 @@ void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
       a = 1.0 - w[j] * h;
       if (a > 0) {
         acvr[j] = fabs(y[j] - smo[j]) / a;
-        // TODO: WHAT IS GOING ON HERE???
       } else if (j > 0) {
         acvr[j] = acvr[j - 1];
       }

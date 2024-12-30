@@ -2,23 +2,24 @@ import warnings
 
 import numpy as np
 cimport numpy as np
+from cython cimport floating
 
 np.import_array()
 
-DTYPE = np.float32
-ctypedef np.float32_t DTYPE_t
+DTYPE = np.float64
+ctypedef np.float64_t DTYPE_t
 
 cdef extern from "supsmu.h":
-    void c_supsmu "supsmu"(size_t n, float *x, float *y, float *w, int iper,
-                float span, float bass, float *smo)
+    void c_supsmu "supsmu"(size_t n, double *x, double *y, double *w, int iper,
+                double span, double bass, double *smo)
 
 
-def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
-           np.ndarray[DTYPE_t, ndim=1] y,
+def supsmu(np.ndarray[floating, ndim=1] x,
+           np.ndarray[floating, ndim=1] y,
            object wt=None,
-           float span=0,
+           double span=0,
            bint periodic=False,
-           float bass=0):
+           double bass=0):
     """
     Python wrapper for supsmu function.
     
@@ -33,7 +34,6 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
     Returns:
         np.ndarray[float32] - smoothed values
     """
-
     if span < 0 or span > 1:
         raise ValueError("Span should be between 0 and 1.")
 
@@ -41,19 +41,23 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
         raise ValueError("x and y should be numeric arrays")
 
 
+    cdef np.ndarray[DTYPE_t, ndim=1] x_arr
+    cdef np.ndarray[DTYPE_t, ndim=1] y_arr
+
+    # Ensure arrays are contiguous
+    x_arr = np.ascontiguousarray(x, dtype=DTYPE)
+    y_arr = np.ascontiguousarray(y, dtype=DTYPE)
+
+
     if periodic:
         iper = 2
-        if x.min() < 0 or x.max() > 1:
+        if x_arr.min() < 0 or x_arr.max() > 1:
             raise ValueError("x must be between 0 and 1 when periodic")
     else:
         iper = 1
     
-    size = y.shape[0]
+    cdef size_t size = y_arr.shape[0]
     
-
-    # Ensure arrays are contiguous
-    x = np.ascontiguousarray(x, dtype=DTYPE)
-    y = np.ascontiguousarray(y, dtype=DTYPE)
 
     # C type for wt_arr array
     cdef np.ndarray[DTYPE_t, ndim=1] wt_arr
@@ -65,39 +69,36 @@ def supsmu(np.ndarray[DTYPE_t, ndim=1] x,
     else:
         wt_arr = np.ascontiguousarray(wt, dtype=DTYPE)
 
-    if x.shape[0] != size:
+    if x_arr.shape[0] != size:
         raise ValueError("x and y arrays should be the same length")
     if wt_arr.shape[0] != size:
         raise ValueError("weight and y arrays should be the same length")
 
 
     # Create output array
-    cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x, dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x_arr, dtype=DTYPE)
   
 
-    finite = np.isfinite(x) & np.isfinite(y) & np.isfinite(wt_arr)
+    finite = np.isfinite(x_arr) & np.isfinite(y_arr) & np.isfinite(wt_arr)
     if not np.any(finite):
         raise ValueError("x, y, and wt_arr must have some finite observations (not nan or inf)")
     elif not np.all(finite):
         warnings.warn(f"Warning: dropped {size - sum(finite)} non-finite observaitons")
         finite_idx = np.where(finite)
-        x = x[finite_idx]
-        y = y[finite_idx]
+        x_arr = x_arr[finite_idx]
+        y_arr = y_arr[finite_idx]
         wt_arr = wt_arr[finite_idx]
 
-    cdef size_t n = y.shape[0]
-
-    # TODO: Cast to np.float64
 
     c_supsmu(
-        n,
-        <float*>x.data,
-        <float*>y.data,
-        <float*>wt_arr.data,
+        size,
+        <double*>x_arr.data,
+        <double*>y_arr.data,
+        <double*>wt_arr.data,
         iper,
         span,
         bass,
-        <float*>smo.data
+        <double*>smo.data
     )
     
     return smo
