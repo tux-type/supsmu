@@ -6,6 +6,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct RunningStats {
+  double x_mean;
+  double y_mean;
+  double variance;
+  double covariance;
+  double sum_weight;
+} RunningStats;
+
+typedef struct SmoothState {
+  double y_tweeter;         // 0
+  double residual_tweeter;  // 1
+  double y_midrange;        // 2
+  double residual_midrange; // 3
+  double y_woofer;          // 4
+  double residual_woofer;   // 5
+  double residual;          // 6
+} SmoothState;
+
 #define max(a, b)                                                              \
   ({                                                                           \
     __typeof__(a) _a = (a);                                                    \
@@ -19,9 +37,7 @@ void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
 void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding);
 
-void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
-            double bass, double *smo);
-
+// TODO: Define appropriate args as consts
 // TODO: Refactor iper to be a boolean and add another flag for negative iper
 void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
             double alpha, double *smo) {
@@ -135,11 +151,11 @@ void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
     double f = sc[1 * n + row] - spans[1];
     if (f >= 0.0) {
       f = f / (spans[2] - spans[1]);
-      // Index 2 - midrange, Index 0 - tweeter
+      // Index 2 - midrange, Index 4 - woofer
       sc[3 * n + row] = (1.0 - f) * sc[2 * n + row] + f * sc[4 * n + row];
     } else {
       f = -f / (spans[1] - spans[0]);
-      // Index 2 - midrange, Index 4 - woofer
+      // Index 2 - midrange, Index 0 - tweeter
       sc[3 * n + row] = (1.0 - f) * sc[2 * n + row] + f * sc[0 * n + row];
     }
   }
