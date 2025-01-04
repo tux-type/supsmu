@@ -143,8 +143,7 @@ void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
          get_field(&ss, BEST_SPANS_MIDRANGE, 0), NULL);
 
   // Interpolate between y values based on residuals
-  for (size_t j = 0; j < n; j++) {
-    size_t row = j;
+  for (size_t row = 0; row < n; row++) {
     if (*get_field(&ss, BEST_SPANS_MIDRANGE, row) <= spans[TWEETER]) {
       *get_field(&ss, BEST_SPANS_MIDRANGE, row) = spans[TWEETER];
     }
