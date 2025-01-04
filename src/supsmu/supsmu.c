@@ -24,12 +24,7 @@ typedef struct SmoothState {
   double residual;          // 6
 } SmoothState;
 
-#define max(a, b)                                                              \
-  ({                                                                           \
-    __typeof__(a) _a = (a);                                                    \
-    __typeof__(b) _b = (b);                                                    \
-    _a > _b ? _a : _b;                                                         \
-  })
+inline double max(double a, double b) { return a > b ? a : b; }
 
 void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
             double vsmlsq, double *smo, double *acvr);
