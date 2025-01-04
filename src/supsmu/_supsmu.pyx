@@ -11,7 +11,7 @@ ctypedef np.float64_t DTYPE_t
 
 cdef extern from "supsmu.h":
     void c_supsmu "supsmu"(size_t n, double *x, double *y, double *w, int iper,
-                double span, double bass, double *smo)
+                double span, double bass, double *smo, double *sc)
 
 
 def supsmu(np.ndarray[floating, ndim=1] x,
@@ -77,6 +77,8 @@ def supsmu(np.ndarray[floating, ndim=1] x,
 
     # Create output array
     cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x_arr, dtype=DTYPE)
+    # Create scratch memory array
+    cdef np.ndarray[DTYPE_t, ndim=1] sc = np.empty(shape=(size * 7,), dtype=DTYPE)
   
 
     finite = np.isfinite(x_arr) & np.isfinite(y_arr) & np.isfinite(wt_arr)
@@ -98,7 +100,8 @@ def supsmu(np.ndarray[floating, ndim=1] x,
         iper,
         span,
         bass,
-        <double*>smo.data
+        <double*>smo.data,
+        <double*>sc.data
     )
     
     return smo
