@@ -195,21 +195,26 @@ void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
   RunningStats stats = {0};
 
   // Initial fill of the window
-  for (size_t i = 0; i < J; i++) {
-    ssize_t j = jper == 2 ? i - half_J - 1 : i;
-    // TODO: Tidy up, split out if statement for only the jper == 2 case
-    // j is purely for periodic case, when jper is not 2, j should always == i
-    // and >= 0
-    double x_j;
-    if (j >= 0) {
-      x_j = x[j];
-    } else {
-      j = n + j;
-      // Adjust by -1 so x appears close to other points in the window (?)
-      x_j = x[j] - 1.0;
+  // Separate loops to allow optimisations on non-periodic case
+  if (jper == 1) {
+    for (size_t i = 0; i < J; i++) {
+      update_stats(&stats, x[i], y[i], w[i], true);
     }
-    // TODO: Determine if it's worthwile to in-line update_stats
-    update_stats(&stats, x_j, y[j], w[j], true);
+  } else if (jper == 2) {
+    for (size_t i = 0; i < J; i++) {
+      ssize_t j = i - half_J - 1;
+      double x_j;
+
+      if (j < 0) {
+        // Wrap around and adjust by -1 so x appears close to other points in
+        // the window
+        j = n + j;
+        x_j = x[j] - 1.0;
+      } else {
+        x_j = x[j];
+      }
+      update_stats(&stats, x_j, y[j], w[j], true);
+    }
   }
 
   // Main smoothing loop
@@ -269,7 +274,7 @@ void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
     }
   }
 
-  // Recompute fitted values smo[j] as weighted mean for non-unique x[.] values:
+  // Recompute fitted values smo[j] as weighted mean for non-unique x values:
   for (size_t j = 0; j < n; j++) {
     size_t j0 = j;
     double sum_y = smo[j] * w[j];
