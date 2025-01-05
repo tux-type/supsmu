@@ -1,4 +1,5 @@
 #include "supsmu.h"
+#include <assert.h>
 #include <float.h>
 #include <math.h>
 #include <stdbool.h>
@@ -81,8 +82,8 @@ void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
   // Offset by 1 to account for 0 based indexing
   double scale = x[j - 1] - x[i - 1]; // Scale = IQR
 
-  // TODO: Double check if this can enter an infinite loop e.g. when x values
-  // are same (shouldn't happen due to bounds check above)
+  // Assert that the above early return worked as expected (state is valid).
+  assert(x[n - 1] > x[0]);
   while (scale <= 0) {
     j = j < (n - 1) ? j + 1 : j;
     i = i > 0 ? i - 1 : i;
