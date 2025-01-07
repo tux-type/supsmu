@@ -6,25 +6,25 @@
 #include <stdlib.h>
 
 typedef enum Span {
-  TWEETER,
-  MIDRANGE,
-  WOOFER,
+  Tweeter,
+  Midrange,
+  Woofer,
 } Span;
 
 typedef enum CVFields {
-  Y_TWEETER,         // 0
-  RESIDUAL_TWEETER,  // 1
-  Y_MIDRANGE,        // 2
-  RESIDUAL_MIDRANGE, // 3
-  Y_WOOFER,          // 4
-  RESIDUAL_WOOFER,   // 5
-  TEMP_RESIDUAL,     // 6
+  YTweeter,         // 0
+  ResidualTweeter,  // 1
+  YMidrange,        // 2
+  ResidualMidrange, // 3
+  YWoofer,          // 4
+  ResidualWoofer,   // 5
+  TempResidual,     // 6
 } CVFields;
 
 typedef enum SpanFields {
-  BEST_SPANS = 6,
-  BEST_SPANS_MIDRANGE = 1,
-  Y_INTERPOLATED = 3,
+  BestSpans = 6,
+  BestSpansMidrange = 1,
+  YInterpolated = 3,
 } SpanFields;
 
 typedef struct SmoothState {
@@ -47,15 +47,15 @@ inline double *get_field(const SmoothState *ss, const size_t field_idx,
 
 inline double max(double a, double b) { return a > b ? a : b; }
 
-void smooth(size_t n, const double *x, const double *y, const double *w, double span, int iper,
-            double vsmlsq, double *smo, double *acvr);
+void smooth(size_t n, const double *x, const double *y, const double *w,
+            double span, int iper, double vsmlsq, double *smo, double *acvr);
 
 void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding);
 
 // TODO: Refactor iper to be a boolean and add another flag for negative iper
-void supsmu(size_t n, const double *x, const double *y, const double *w, int iper, double span,
-            double alpha, double *smo, double *sc) {
+void supsmu(size_t n, const double *x, const double *y, const double *w,
+            int iper, double span, double alpha, double *smo, double *sc) {
   SmoothState ss = {.data = sc, .n = n};
   double spans[3] = {0.05, 0.2, 0.5};
   double small = 1.0e-7;
@@ -103,15 +103,15 @@ void supsmu(size_t n, const double *x, const double *y, const double *w, int ipe
   }
 
   // Using cross validation for three spans
-  CVFields y_idx[3] = {Y_TWEETER, Y_MIDRANGE, Y_WOOFER};
-  CVFields residual_idx[3] = {RESIDUAL_TWEETER, RESIDUAL_MIDRANGE,
-                              RESIDUAL_WOOFER};
+  CVFields y_idx[3] = {YTweeter, YMidrange, YWoofer};
+  CVFields residual_idx[3] = {ResidualTweeter, ResidualMidrange,
+                              ResidualWoofer};
 
-  for (Span sp = TWEETER; sp <= WOOFER; sp++) {
+  for (Span sp = Tweeter; sp <= Woofer; sp++) {
     smooth(n, x, y, w, spans[sp], jper, vsmlsq, get_field(&ss, y_idx[sp], 0),
-           get_field(&ss, TEMP_RESIDUAL, 0));
+           get_field(&ss, TempResidual, 0));
     // NULL since h should not be used in this second pass
-    smooth(n, x, get_field(&ss, TEMP_RESIDUAL, 0), w, spans[MIDRANGE], -jper,
+    smooth(n, x, get_field(&ss, TempResidual, 0), w, spans[Midrange], -jper,
            vsmlsq, get_field(&ss, residual_idx[sp], 0), NULL);
   }
 
@@ -120,58 +120,58 @@ void supsmu(size_t n, const double *x, const double *y, const double *w, int ipe
     double resmin = DBL_MAX;
 
     // Find spans with lowest residuals
-    for (Span sp = TWEETER; sp <= WOOFER; sp++) {
+    for (Span sp = Tweeter; sp <= Woofer; sp++) {
       if (*get_field(&ss, residual_idx[sp], row) < resmin) {
         resmin = *get_field(&ss, residual_idx[sp], row);
-        *get_field(&ss, BEST_SPANS, row) = spans[sp];
+        *get_field(&ss, BestSpans, row) = spans[sp];
       }
     }
 
     // Alpha/bass adjustment
     if (alpha > 0.0 && alpha <= 10.0 &&
-        resmin < *get_field(&ss, RESIDUAL_WOOFER, row) && resmin > 0.0) {
-      double *best_spans = get_field(&ss, BEST_SPANS, row);
-      double *residual_woofer = get_field(&ss, RESIDUAL_WOOFER, row);
-      *best_spans = *best_spans + (spans[WOOFER] - *best_spans) *
-                                      pow(max(small, resmin / *residual_woofer),
-                                          10.0 - alpha);
+        resmin < *get_field(&ss, ResidualWoofer, row) && resmin > 0.0) {
+      double *best_span = get_field(&ss, BestSpans, row);
+      double *residual_woofer = get_field(&ss, ResidualWoofer, row);
+      *best_span = *best_span +
+                   (spans[Woofer] - *best_span) *
+                       pow(max(small, resmin / *residual_woofer), 10.0 - alpha);
     }
   }
 
   // Smooth spans
-  smooth(n, x, get_field(&ss, BEST_SPANS, 0), w, spans[MIDRANGE], -jper, vsmlsq,
-         get_field(&ss, BEST_SPANS_MIDRANGE, 0), NULL);
+  smooth(n, x, get_field(&ss, BestSpans, 0), w, spans[Midrange], -jper, vsmlsq,
+         get_field(&ss, BestSpansMidrange, 0), NULL);
 
   // Interpolate between y values based on residuals
   for (size_t row = 0; row < n; row++) {
-    if (*get_field(&ss, BEST_SPANS_MIDRANGE, row) <= spans[TWEETER]) {
-      *get_field(&ss, BEST_SPANS_MIDRANGE, row) = spans[TWEETER];
+    if (*get_field(&ss, BestSpansMidrange, row) <= spans[Tweeter]) {
+      *get_field(&ss, BestSpansMidrange, row) = spans[Tweeter];
     }
-    if (*get_field(&ss, BEST_SPANS_MIDRANGE, row) >= spans[WOOFER]) {
-      *get_field(&ss, BEST_SPANS_MIDRANGE, row) = spans[WOOFER];
+    if (*get_field(&ss, BestSpansMidrange, row) >= spans[Woofer]) {
+      *get_field(&ss, BestSpansMidrange, row) = spans[Woofer];
     }
-    double f = *get_field(&ss, BEST_SPANS_MIDRANGE, row) - spans[MIDRANGE];
+    double f = *get_field(&ss, BestSpansMidrange, row) - spans[Midrange];
     if (f >= 0.0) {
-      f = f / (spans[WOOFER] - spans[MIDRANGE]);
+      f = f / (spans[Woofer] - spans[Midrange]);
       // Index 2 - midrange, Index 4 - woofer
-      *get_field(&ss, Y_INTERPOLATED, row) =
-          (1.0 - f) * *get_field(&ss, Y_MIDRANGE, row) +
-          f * *get_field(&ss, Y_WOOFER, row);
+      *get_field(&ss, YInterpolated, row) =
+          (1.0 - f) * *get_field(&ss, YMidrange, row) +
+          f * *get_field(&ss, YWoofer, row);
     } else {
-      f = -f / (spans[MIDRANGE] - spans[TWEETER]);
+      f = -f / (spans[Midrange] - spans[Tweeter]);
       // Index 2 - midrange, Index 0 - tweeter
-      *get_field(&ss, Y_INTERPOLATED, row) =
-          (1.0 - f) * *get_field(&ss, Y_MIDRANGE, row) +
-          f * *get_field(&ss, Y_TWEETER, row);
+      *get_field(&ss, YInterpolated, row) =
+          (1.0 - f) * *get_field(&ss, YMidrange, row) +
+          f * *get_field(&ss, YTweeter, row);
     }
   }
 
-  smooth(n, x, get_field(&ss, Y_INTERPOLATED, 0), w, spans[TWEETER], -jper,
+  smooth(n, x, get_field(&ss, YInterpolated, 0), w, spans[Tweeter], -jper,
          vsmlsq, smo, NULL);
 }
 
-void smooth(size_t n, const double *x, const double *y, const double *w, double span, int iper,
-            double vsmlsq, double *smo, double *acvr) {
+void smooth(size_t n, const double *x, const double *y, const double *w,
+            double span, int iper, double vsmlsq, double *smo, double *acvr) {
   // w: weights or arange(1, n)
   // TODO: iper SHOULD BE BOOL
   // iper: periodic variable flag
