@@ -10,7 +10,7 @@ DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
 cdef extern from "supsmu.h":
-    void c_supsmu "supsmu"(size_t n, double *x, double *y, double *w, int iper,
+    void c_supsmu "supsmu"(size_t n, const double *x, const double *y, const double *w, int iper,
                 double span, double bass, double *smo, double *sc)
 
 

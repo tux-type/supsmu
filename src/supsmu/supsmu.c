@@ -47,15 +47,14 @@ inline double *get_field(const SmoothState *ss, const size_t field_idx,
 
 inline double max(double a, double b) { return a > b ? a : b; }
 
-void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
+void smooth(size_t n, const double *x, const double *y, const double *w, double span, int iper,
             double vsmlsq, double *smo, double *acvr);
 
 void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding);
 
-// TODO: Define appropriate args as consts
 // TODO: Refactor iper to be a boolean and add another flag for negative iper
-void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
+void supsmu(size_t n, const double *x, const double *y, const double *w, int iper, double span,
             double alpha, double *smo, double *sc) {
   SmoothState ss = {.data = sc, .n = n};
   double spans[3] = {0.05, 0.2, 0.5};
@@ -171,7 +170,7 @@ void supsmu(size_t n, double *x, double *y, double *w, int iper, double span,
          vsmlsq, smo, NULL);
 }
 
-void smooth(size_t n, double *x, double *y, double *w, double span, int iper,
+void smooth(size_t n, const double *x, const double *y, const double *w, double span, int iper,
             double vsmlsq, double *smo, double *acvr) {
   // w: weights or arange(1, n)
   // TODO: iper SHOULD BE BOOL
@@ -323,7 +322,7 @@ void update_stats(RunningStats *stats, double x, double y, double weight,
 
   double tmp = 0;
   // sum_weight_original = 0 for the initial point, since variance is
-  // 0 for a single vale
+  // 0 for a single value
   if (sum_weight_original > 0) {
     tmp =
         stats->sum_weight * weight * (x - stats->x_mean) / sum_weight_original;
