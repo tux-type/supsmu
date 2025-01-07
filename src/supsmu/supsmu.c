@@ -56,7 +56,7 @@ void update_stats(RunningStats *stats, double x, double y, double weight,
 // TODO: Refactor iper to be a boolean and add another flag for negative iper
 void supsmu(size_t n, const double *x, const double *y, const double *w,
             int iper, double span, double alpha, double *smo, double *sc) {
-  SmoothState ss = {.data = sc, .n = n};
+  SmoothState *ss = &(struct SmoothState){.data = sc, .n = n};
   double spans[3] = {0.05, 0.2, 0.5};
   double small = 1.0e-7;
   double eps = 1.0e-3;
@@ -108,11 +108,11 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
                               ResidualWoofer};
 
   for (Span sp = Tweeter; sp <= Woofer; sp++) {
-    smooth(n, x, y, w, spans[sp], jper, vsmlsq, get_field(&ss, y_idx[sp], 0),
-           get_field(&ss, TempResidual, 0));
+    smooth(n, x, y, w, spans[sp], jper, vsmlsq, get_field(ss, y_idx[sp], 0),
+           get_field(ss, TempResidual, 0));
     // NULL since h should not be used in this second pass
-    smooth(n, x, get_field(&ss, TempResidual, 0), w, spans[Midrange], -jper,
-           vsmlsq, get_field(&ss, residual_idx[sp], 0), NULL);
+    smooth(n, x, get_field(ss, TempResidual, 0), w, spans[Midrange], -jper,
+           vsmlsq, get_field(ss, residual_idx[sp], 0), NULL);
   }
 
   // Find optimal spans
@@ -121,17 +121,17 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
 
     // Find spans with lowest residuals
     for (Span sp = Tweeter; sp <= Woofer; sp++) {
-      if (*get_field(&ss, residual_idx[sp], row) < resmin) {
-        resmin = *get_field(&ss, residual_idx[sp], row);
-        *get_field(&ss, BestSpans, row) = spans[sp];
+      if (*get_field(ss, residual_idx[sp], row) < resmin) {
+        resmin = *get_field(ss, residual_idx[sp], row);
+        *get_field(ss, BestSpans, row) = spans[sp];
       }
     }
 
     // Alpha/bass adjustment
     if (alpha > 0.0 && alpha <= 10.0 &&
-        resmin < *get_field(&ss, ResidualWoofer, row) && resmin > 0.0) {
-      double *best_span = get_field(&ss, BestSpans, row);
-      double *residual_woofer = get_field(&ss, ResidualWoofer, row);
+        resmin < *get_field(ss, ResidualWoofer, row) && resmin > 0.0) {
+      double *best_span = get_field(ss, BestSpans, row);
+      double *residual_woofer = get_field(ss, ResidualWoofer, row);
       *best_span = *best_span +
                    (spans[Woofer] - *best_span) *
                        pow(max(small, resmin / *residual_woofer), 10.0 - alpha);
@@ -139,34 +139,34 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
   }
 
   // Smooth spans
-  smooth(n, x, get_field(&ss, BestSpans, 0), w, spans[Midrange], -jper, vsmlsq,
-         get_field(&ss, BestSpansMidrange, 0), NULL);
+  smooth(n, x, get_field(ss, BestSpans, 0), w, spans[Midrange], -jper, vsmlsq,
+         get_field(ss, BestSpansMidrange, 0), NULL);
 
   // Interpolate between y values based on residuals
   for (size_t row = 0; row < n; row++) {
-    if (*get_field(&ss, BestSpansMidrange, row) <= spans[Tweeter]) {
-      *get_field(&ss, BestSpansMidrange, row) = spans[Tweeter];
+    if (*get_field(ss, BestSpansMidrange, row) <= spans[Tweeter]) {
+      *get_field(ss, BestSpansMidrange, row) = spans[Tweeter];
     }
-    if (*get_field(&ss, BestSpansMidrange, row) >= spans[Woofer]) {
-      *get_field(&ss, BestSpansMidrange, row) = spans[Woofer];
+    if (*get_field(ss, BestSpansMidrange, row) >= spans[Woofer]) {
+      *get_field(ss, BestSpansMidrange, row) = spans[Woofer];
     }
-    double f = *get_field(&ss, BestSpansMidrange, row) - spans[Midrange];
+    double f = *get_field(ss, BestSpansMidrange, row) - spans[Midrange];
     if (f >= 0.0) {
       f = f / (spans[Woofer] - spans[Midrange]);
       // Index 2 - midrange, Index 4 - woofer
-      *get_field(&ss, YInterpolated, row) =
-          (1.0 - f) * *get_field(&ss, YMidrange, row) +
-          f * *get_field(&ss, YWoofer, row);
+      *get_field(ss, YInterpolated, row) =
+          (1.0 - f) * *get_field(ss, YMidrange, row) +
+          f * *get_field(ss, YWoofer, row);
     } else {
       f = -f / (spans[Midrange] - spans[Tweeter]);
       // Index 2 - midrange, Index 0 - tweeter
-      *get_field(&ss, YInterpolated, row) =
-          (1.0 - f) * *get_field(&ss, YMidrange, row) +
-          f * *get_field(&ss, YTweeter, row);
+      *get_field(ss, YInterpolated, row) =
+          (1.0 - f) * *get_field(ss, YMidrange, row) +
+          f * *get_field(ss, YTweeter, row);
     }
   }
 
-  smooth(n, x, get_field(&ss, YInterpolated, 0), w, spans[Tweeter], -jper,
+  smooth(n, x, get_field(ss, YInterpolated, 0), w, spans[Tweeter], -jper,
          vsmlsq, smo, NULL);
 }
 
