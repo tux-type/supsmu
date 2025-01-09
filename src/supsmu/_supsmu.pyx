@@ -10,8 +10,8 @@ DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
 cdef extern from "supsmu.h":
-    void c_supsmu "supsmu"(size_t n, const double *x, const double *y, const double *w, int iper,
-                double span, double bass, double *smo, double *sc)
+    void c_supsmu "supsmu"(size_t n, const double *x, const double *y, const double *w,
+                           bint periodic, double span, double bass, double *smo, double *sc)
 
 
 def supsmu(np.ndarray[floating, ndim=1] x,
@@ -49,12 +49,8 @@ def supsmu(np.ndarray[floating, ndim=1] x,
     y_arr = np.ascontiguousarray(y, dtype=DTYPE)
 
 
-    if periodic:
-        iper = 2
-        if x_arr.min() < 0 or x_arr.max() > 1:
-            raise ValueError("x must be between 0 and 1 when periodic")
-    else:
-        iper = 1
+    if periodic and (x_arr.min() < 0 or x_arr.max() > 1):
+        raise ValueError("x must be between 0 and 1 when periodic")
     
     cdef size_t size = y_arr.shape[0]
     
@@ -97,7 +93,7 @@ def supsmu(np.ndarray[floating, ndim=1] x,
         <double*>x_arr.data,
         <double*>y_arr.data,
         <double*>wt_arr.data,
-        iper,
+        periodic,
         span,
         bass,
         <double*>smo.data,

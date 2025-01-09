@@ -48,14 +48,14 @@ inline double *get_field(const SmoothState *ss, const size_t field_idx,
 inline double max(double a, double b) { return a > b ? a : b; }
 
 void smooth(size_t n, const double *x, const double *y, const double *w,
-            double span, int iper, double vsmlsq, double *smo, double *acvr);
+            double span, bool periodic, bool save_residual, double vsmlsq,
+            double *smo, double *acvr);
 
 void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding);
 
-// TODO: Refactor iper to be a boolean and add another flag for negative iper
 void supsmu(size_t n, const double *x, const double *y, const double *w,
-            int iper, double span, double alpha, double *smo, double *sc) {
+            bool periodic, double span, double alpha, double *smo, double *sc) {
   SmoothState *ss = &(struct SmoothState){.data = sc, .n = n};
   double spans[3] = {0.05, 0.2, 0.5};
   double small = 1.0e-7;
@@ -90,15 +90,15 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
   }
 
   double vsmlsq = pow(eps * scale, 2);
-  size_t jper = iper;
 
-  jper = (iper == 2 && (x[0] < 0.0 || x[n] > 1.0)) ? 1 : jper;
-  jper = (jper < 1 || jper > 2) ? 1 : jper;
+  if (x[0] < 0.0 || x[n] > 1.0) {
+    periodic = false;
+  }
 
   // Using provided span
   if (span > 0.0) {
     // Call with full scratch memory size
-    smooth(n, x, y, w, span, jper, vsmlsq, smo, sc);
+    smooth(n, x, y, w, span, periodic, true, vsmlsq, smo, sc);
     return;
   }
 
@@ -108,11 +108,11 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
                               ResidualWoofer};
 
   for (Span sp = Tweeter; sp <= Woofer; sp++) {
-    smooth(n, x, y, w, spans[sp], jper, vsmlsq, get_field(ss, y_idx[sp], 0),
-           get_field(ss, TempResidual, 0));
+    smooth(n, x, y, w, spans[sp], periodic, true, vsmlsq,
+           get_field(ss, y_idx[sp], 0), get_field(ss, TempResidual, 0));
     // NULL since h should not be used in this second pass
-    smooth(n, x, get_field(ss, TempResidual, 0), w, spans[Midrange], -jper,
-           vsmlsq, get_field(ss, residual_idx[sp], 0), NULL);
+    smooth(n, x, get_field(ss, TempResidual, 0), w, spans[Midrange], periodic,
+           false, vsmlsq, get_field(ss, residual_idx[sp], 0), NULL);
   }
 
   // Find optimal spans
@@ -139,8 +139,8 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
   }
 
   // Smooth spans
-  smooth(n, x, get_field(ss, BestSpans, 0), w, spans[Midrange], -jper, vsmlsq,
-         get_field(ss, BestSpansMidrange, 0), NULL);
+  smooth(n, x, get_field(ss, BestSpans, 0), w, spans[Midrange], periodic, false,
+         vsmlsq, get_field(ss, BestSpansMidrange, 0), NULL);
 
   // Interpolate between y values based on residuals
   for (size_t row = 0; row < n; row++) {
@@ -166,17 +166,17 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
     }
   }
 
-  smooth(n, x, get_field(ss, YInterpolated, 0), w, spans[Tweeter], -jper,
-         vsmlsq, smo, NULL);
+  smooth(n, x, get_field(ss, YInterpolated, 0), w, spans[Tweeter], periodic,
+         false, vsmlsq, smo, NULL);
 }
 
 void smooth(size_t n, const double *x, const double *y, const double *w,
-            double span, int iper, double vsmlsq, double *smo, double *acvr) {
+            double span, bool periodic, bool save_residual, double vsmlsq,
+            double *smo, double *acvr) {
   // w: weights or arange(1, n)
-  // TODO: iper SHOULD BE BOOL
-  // iper: periodic variable flag
-  //   iper=1 => x is ordered interval variable
-  //   iper=2 => x is a periodic variable with values
+  // periodic: periodic variable flag
+  //   false => x is ordered interval variable
+  //   true => x is a periodic variable with values
   //             in the range (0.0, 1.0) and period 1.0
   //  span: span of 0 indicates cross-validation/automatic selection
   //  alpha: controls small span (high freq.) penalty used with automatic
@@ -184,7 +184,6 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
   // vsmlsq: ??
   // smo: smooth output?
 
-  int jper = abs(iper);
   // J: window size/span
   size_t half_J = floor(0.5 * span * n + 0.5);
   half_J = half_J < 2 ? 2 : half_J;
@@ -195,11 +194,7 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
 
   // Initial fill of the window
   // Separate loops to allow optimisations on non-periodic case
-  if (jper == 1) {
-    for (size_t i = 0; i < J; i++) {
-      update_stats(&stats, x[i], y[i], w[i], true);
-    }
-  } else if (jper == 2) {
+  if (periodic) {
     for (size_t i = 0; i < J; i++) {
       ssize_t j = i - half_J - 1;
       double x_j;
@@ -214,6 +209,10 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
       }
       update_stats(&stats, x_j, y[j], w[j], true);
     }
+  } else {
+    for (size_t i = 0; i < J; i++) {
+      update_stats(&stats, x[i], y[i], w[i], true);
+    }
   }
 
   // Main smoothing loop
@@ -226,10 +225,10 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
     size_t in = j + half_J;
 
     // TODO: Further tidy up of conditional statements
-    if (jper == 2 || (out >= 0 && in < n)) {
+    if (periodic || (out >= 0 && in < n)) {
       double x_out;
       double x_in;
-      // Out of bounds checks: only applies when jper == 2
+      // Out of bounds checks: only applies when periodic
       if (out < 0) {
         out = n + out;
         x_out = x[out] - 1.0;
@@ -254,10 +253,9 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
     }
     smo[j] = a * (x[j] - stats.x_mean) + stats.y_mean;
 
-    // TODO: Refactor this case where iper <= 0, as this is using a "hack"
-    // This is calculating the cross validation residual for each point
+    // Calculate the cross validation residual for each point
     // Smaller CV values => better fit
-    if (iper > 0 && acvr != NULL) {
+    if (save_residual && acvr != NULL) {
       double h = 0;
       h = stats.sum_weight > 0 ? 1.0 / stats.sum_weight : h;
       h = stats.variance > vsmlsq
