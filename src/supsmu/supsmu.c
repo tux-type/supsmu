@@ -219,27 +219,22 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
   for (size_t j = 0; j < n; j++) {
     // window: (out < i < in) <- might not always be true on window edges
 
-    // Remove point falling out of window (if exists)
-    // TODO: Rename out to start; in to end
+    // Points falling out of window and being added to the window
     ssize_t out = j - half_J - 1;
     size_t in = j + half_J;
 
-    // TODO: Further tidy up of conditional statements
-    if (periodic || (out >= 0 && in < n)) {
-      double x_out;
-      double x_in;
-      // Out of bounds checks: only applies when periodic
+    if (out >= 0 && in < n) {
+      update_stats(&stats, x[out], y[out], w[out], false);
+      update_stats(&stats, x[in], y[in], w[in], true);
+    } else if (periodic) {
+      double x_out = x[out];
+      double x_in = x[in];
       if (out < 0) {
         out = n + out;
         x_out = x[out] - 1.0;
-        x_in = x[in];
       } else if (in >= n) {
         in = in - n;
-        x_out = x[out];
         x_in = x[in] + 1.0;
-      } else {
-        x_out = x[out];
-        x_in = x[in];
       }
       update_stats(&stats, x_out, y[out], w[out], false);
       update_stats(&stats, x_in, y[in], w[in], true);
