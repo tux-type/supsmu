@@ -12,13 +12,13 @@ typedef enum Span {
 } Span;
 
 typedef enum CVFields {
-  YTweeter,         // 0
-  ResidualTweeter,  // 1
-  YMidrange,        // 2
-  ResidualMidrange, // 3
-  YWoofer,          // 4
-  ResidualWoofer,   // 5
-  TempResidual,     // 6
+  YTweeter,
+  ResidualTweeter,
+  YMidrange,
+  ResidualMidrange,
+  YWoofer,
+  ResidualWoofer,
+  TempResidual,
 } CVFields;
 
 typedef enum SpanFields {
@@ -48,7 +48,7 @@ inline double *get_field(const SmoothState *ss, const size_t field_idx,
 inline double max(double a, double b) { return a > b ? a : b; }
 
 void smooth(size_t n, const double *x, const double *y, const double *w,
-            double span, bool periodic, bool save_residual, double vsmlsq,
+            double span, bool periodic, bool save_residual, double var_tol,
             double *smo, double *acvr);
 
 void update_stats(RunningStats *stats, double x, double y, double weight,
@@ -89,7 +89,8 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
     scale = x[j] - x[i];
   }
 
-  double vsmlsq = pow(eps * scale, 2);
+  // Data scale-aware variance threshold
+  double var_tol = pow(eps * scale, 2);
 
   if (x[0] < 0.0 || x[n] > 1.0) {
     periodic = false;
@@ -98,7 +99,7 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
   // Using provided span
   if (span > 0.0) {
     // Call with full scratch memory size
-    smooth(n, x, y, w, span, periodic, true, vsmlsq, smo, sc);
+    smooth(n, x, y, w, span, periodic, true, var_tol, smo, sc);
     return;
   }
 
@@ -108,11 +109,11 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
                               ResidualWoofer};
 
   for (Span sp = Tweeter; sp <= Woofer; sp++) {
-    smooth(n, x, y, w, spans[sp], periodic, true, vsmlsq,
+    smooth(n, x, y, w, spans[sp], periodic, true, var_tol,
            get_field(ss, y_idx[sp], 0), get_field(ss, TempResidual, 0));
     // NULL since h should not be used in this second pass
     smooth(n, x, get_field(ss, TempResidual, 0), w, spans[Midrange], periodic,
-           false, vsmlsq, get_field(ss, residual_idx[sp], 0), NULL);
+           false, var_tol, get_field(ss, residual_idx[sp], 0), NULL);
   }
 
   // Find optimal spans
@@ -140,7 +141,7 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
 
   // Smooth spans
   smooth(n, x, get_field(ss, BestSpans, 0), w, spans[Midrange], periodic, false,
-         vsmlsq, get_field(ss, BestSpansMidrange, 0), NULL);
+         var_tol, get_field(ss, BestSpansMidrange, 0), NULL);
 
   // Interpolate between y values based on residuals
   for (size_t row = 0; row < n; row++) {
@@ -167,21 +168,22 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
   }
 
   smooth(n, x, get_field(ss, YInterpolated, 0), w, spans[Tweeter], periodic,
-         false, vsmlsq, smo, NULL);
+         false, var_tol, smo, NULL);
 }
 
 void smooth(size_t n, const double *x, const double *y, const double *w,
-            double span, bool periodic, bool save_residual, double vsmlsq,
+            double span, bool periodic, bool save_residual, double var_tol,
             double *smo, double *acvr) {
   // w: weights or arange(1, n)
   // periodic: periodic variable flag
   //   false => x is ordered interval variable
   //   true => x is a periodic variable with values
   //             in the range (0.0, 1.0) and period 1.0
+  //  save_residual: flag indicating whether residuals should be calculated and saved to acvr
   //  span: span of 0 indicates cross-validation/automatic selection
   //  alpha: controls small span (high freq.) penalty used with automatic
   //         span selection (0.0 < alpha <= 10.0)
-  // vsmlsq: ??
+  // var_tol: variance threshold to avoid division by small numbers
   // smo: smooth output?
 
   // J: window size/span
@@ -240,26 +242,24 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
       update_stats(&stats, x_in, y[in], w[in], true);
     }
 
-    // TODO: Rename to something more reasonable
-    double a = 0.0;
-    // TODO: Figure out what is vsmlsq?
-    if (stats.variance > vsmlsq) {
-      a = stats.covariance / stats.variance;
+    double slope = 0.0;
+    if (stats.variance > var_tol) {
+      slope = stats.covariance / stats.variance;
     }
-    smo[j] = a * (x[j] - stats.x_mean) + stats.y_mean;
+    smo[j] = slope * (x[j] - stats.x_mean) + stats.y_mean;
 
     // Calculate the cross validation residual for each point
     // Smaller CV values => better fit
     if (save_residual && acvr != NULL) {
       double h = 0;
       h = stats.sum_weight > 0 ? 1.0 / stats.sum_weight : h;
-      h = stats.variance > vsmlsq
+      h = stats.variance > var_tol
               ? h + pow((x[j] - stats.x_mean), 2) / stats.variance
               : h;
       acvr[j] = 0.0;
-      a = 1.0 - w[j] * h;
-      if (a > 0) {
-        acvr[j] = fabs(y[j] - smo[j]) / a;
+      slope = 1.0 - w[j] * h;
+      if (slope > 0) {
+        acvr[j] = fabs(y[j] - smo[j]) / slope;
       } else if (j > 0) {
         acvr[j] = acvr[j - 1];
       }
@@ -299,7 +299,6 @@ void update_stats(RunningStats *stats, double x, double y, double weight,
   }
 
   if (stats->sum_weight > 0) {
-    // Update means
     if (adding) {
       stats->x_mean = (sum_weight_original * stats->x_mean + weight * x) /
                       stats->sum_weight;
@@ -313,18 +312,18 @@ void update_stats(RunningStats *stats, double x, double y, double weight,
     }
   }
 
-  double tmp = 0;
+  double weighted_x_deviation = 0;
   // sum_weight_original = 0 for the initial point, since variance is
   // 0 for a single value
   if (sum_weight_original > 0) {
-    tmp =
+    weighted_x_deviation =
         stats->sum_weight * weight * (x - stats->x_mean) / sum_weight_original;
   }
   if (adding) {
-    stats->variance += tmp * (x - stats->x_mean);
-    stats->covariance += tmp * (y - stats->y_mean);
+    stats->variance += weighted_x_deviation * (x - stats->x_mean);
+    stats->covariance += weighted_x_deviation * (y - stats->y_mean);
   } else {
-    stats->variance -= tmp * (x - stats->x_mean);
-    stats->covariance -= tmp * (y - stats->y_mean);
+    stats->variance -= weighted_x_deviation * (x - stats->x_mean);
+    stats->covariance -= weighted_x_deviation * (y - stats->y_mean);
   }
 }
