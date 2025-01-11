@@ -26,8 +26,9 @@ y_smooth = supsmu(x, y_noisy, periodic=True)
 ```
 
 ## Additional Information
-Supsmu is implemented in C for computational efficiency, with Python bindings that enable seamless
+Supsmu is written in C for computational efficiency, with Python bindings that enable seamless
 integration with NumPy arrays.
+
 The implementation is designed to closely match the outputs of the Fortran version (available in R),
 however there may still exist some inconsistencies.
 
