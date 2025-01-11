@@ -3,11 +3,8 @@
 Supsmu is an implementation of Friedman's SuperSmoother algorithm - a time series smoother that uses
 cross-validation to automatically select optimal spans for local linear regression.
 
-Supsmu is written in C for computational efficiency, with Python bindings that enable seamless
+The package is written in C for computational efficiency, with Python bindings that enable seamless
 integration with NumPy arrays.
-
-The implementation is designed to closely match the outputs of the Fortran version (available in R),
-however there may still exist some inconsistencies.
 
 ![A comparison of noisy data and its smoothed version using Supsmu](assets/smoothing_comparison.png "Smoothing Comparison")
 
@@ -30,6 +27,10 @@ y_noisy = y + noise
 
 y_smooth = supsmu(x, y_noisy, periodic=True)
 ```
+
+## Additional Information
+The implementation is designed to closely match the outputs of the Fortran version (available in R),
+however there may still exist some inconsistencies.
 
 
 ## References
