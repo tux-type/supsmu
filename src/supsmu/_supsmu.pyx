@@ -21,16 +21,19 @@ def supsmu(np.ndarray[floating, ndim=1] x,
            bint periodic=False,
            double bass=0):
     """
-    Python wrapper for supsmu function.
+    Performs Friedman's SuperSmoother algorithm to smooth the data.
+    Automatically chooses the best smoothing span at each point using
+    cross-validation.
     
-    Parameters:
+    Args:
         x: np.ndarray[float32] - x values
         y: np.ndarray[float32] - y values
-        w: np.ndarray[float32] - weights
-        span: float - smoothing span
-        periodic: bool - periodicity flag
-        bass: float - bass enhancement
-    
+        wt: np.ndarray[float32] - weights
+        span: float - smoothing span (0 for cross-validation, otherwise between 0 and 1)
+        periodic: bool - True if data is periodic, False otherwise
+        bass: float - bass enhancement (between 0 and 10) for increased smoothness
+
+
     Returns:
         np.ndarray[float32] - smoothed values
     """
@@ -71,9 +74,8 @@ def supsmu(np.ndarray[floating, ndim=1] x,
         raise ValueError("weight and y arrays should be the same length")
 
 
-    # Create output array
+    # Output and working arrays in Python to be GC'ed
     cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x_arr, dtype=DTYPE)
-    # Create scratch memory array
     cdef np.ndarray[DTYPE_t, ndim=1] sc = np.empty(shape=(size * 7,), dtype=DTYPE)
   
 
