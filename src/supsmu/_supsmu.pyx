@@ -10,8 +10,8 @@ DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 
 cdef extern from "supsmu.h":
-    void c_supsmu "supsmu"(size_t n, double *x, double *y, double *w, int iper,
-                double span, double bass, double *smo)
+    void c_supsmu "supsmu"(size_t n, const double *x, const double *y, const double *w,
+                           bint periodic, double span, double bass, double *smo, double *sc)
 
 
 def supsmu(np.ndarray[floating, ndim=1] x,
@@ -21,16 +21,19 @@ def supsmu(np.ndarray[floating, ndim=1] x,
            bint periodic=False,
            double bass=0):
     """
-    Python wrapper for supsmu function.
+    Performs Friedman's SuperSmoother algorithm to smooth the data.
+    Automatically chooses the best smoothing span at each point using
+    cross-validation.
     
-    Parameters:
+    Args:
         x: np.ndarray[float32] - x values
         y: np.ndarray[float32] - y values
-        w: np.ndarray[float32] - weights
-        span: float - smoothing span
-        periodic: bool - periodicity flag
-        bass: float - bass enhancement
-    
+        wt: np.ndarray[float32] - weights
+        span: float - smoothing span (0 for cross-validation, otherwise between 0 and 1)
+        periodic: bool - True if data is periodic, False otherwise
+        bass: float - bass enhancement (between 0 and 10) for increased smoothness
+
+
     Returns:
         np.ndarray[float32] - smoothed values
     """
@@ -49,12 +52,8 @@ def supsmu(np.ndarray[floating, ndim=1] x,
     y_arr = np.ascontiguousarray(y, dtype=DTYPE)
 
 
-    if periodic:
-        iper = 2
-        if x_arr.min() < 0 or x_arr.max() > 1:
-            raise ValueError("x must be between 0 and 1 when periodic")
-    else:
-        iper = 1
+    if periodic and (x_arr.min() < 0 or x_arr.max() > 1):
+        raise ValueError("x must be between 0 and 1 when periodic")
     
     cdef size_t size = y_arr.shape[0]
     
@@ -75,8 +74,9 @@ def supsmu(np.ndarray[floating, ndim=1] x,
         raise ValueError("weight and y arrays should be the same length")
 
 
-    # Create output array
+    # Output and working arrays in Python to be GC'ed
     cdef np.ndarray[DTYPE_t, ndim=1] smo = np.empty_like(x_arr, dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sc = np.empty(shape=(size * 7,), dtype=DTYPE)
   
 
     finite = np.isfinite(x_arr) & np.isfinite(y_arr) & np.isfinite(wt_arr)
@@ -95,10 +95,11 @@ def supsmu(np.ndarray[floating, ndim=1] x,
         <double*>x_arr.data,
         <double*>y_arr.data,
         <double*>wt_arr.data,
-        iper,
+        periodic,
         span,
         bass,
-        <double*>smo.data
+        <double*>smo.data,
+        <double*>sc.data
     )
     
     return smo

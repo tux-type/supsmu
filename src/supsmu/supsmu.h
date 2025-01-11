@@ -1,35 +1,28 @@
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <math.h>
 #pragma once
 
-typedef struct RunningStats {
-  double x_mean;
-  double y_mean;
-  double variance;
-  double covariance;
-  double sum_weight;
-} RunningStats;
-
-typedef struct SmoothState {
-  // 0
-  double y_tweeter;
-  // 1
-  double residual_tweeter;
-  // 2
-  double y_midrange;
-  // 3
-  double residual_midrange;
-  // 4
-  double y_woofer;
-  // 5
-  double residual_woofer;
-  // 6
-  double residual;
-} SmoothState;
-
-void supsmu(size_t n, double *x, double *y, double *w, int iper,
-            double span, double bass, double *smo);
-void write_csv(char *file_name, double **data, char *col_names,
-               size_t num_cols, size_t num_rows, bool row_major);
-void read_csv(char *file_name, double *x, double *y);
+/**
+ * Performs Friedman's SuperSmoother algorithm to smooth the data.
+ * Automatically chooses the best smoothing span at each point using
+ * cross-validation.
+ *
+ * @param n        Number of data points
+ * @param x        Array of x values [size: n]
+ * @param y        Array of y values [size: n]
+ * @param w        Array of weights for each point [size: n]
+ * @param periodic True if data is periodic, false otherwise
+ * @param span     Smoothing span (0 for cross-validation, otherwise between 0
+ * and 1)
+ * @param alpha    Bass enhancement parameter (between 0 and 10) for increased
+ * smoothness
+ * @param smo      Output array for smoothed y values [size: n]
+ * @param sc       Working memory array [size: n]
+ *
+ * @note          Arrays x, y, w must be pre-allocated with size n
+ * @note          Output array smo must be pre-allocated with size n
+ * @note          Working array sc must be pre-allocated with size n * 7
+ */
+void supsmu(size_t n, const double *x, const double *y, const double *w,
+            bool periodic, double span, double bass, double *smo, double *sc);

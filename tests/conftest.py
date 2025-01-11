@@ -16,15 +16,15 @@ def generate_sine(size, periodic):
     if not periodic:
         y = y + 2 * x
 
-    bound = np.sqrt(3 * noise_level**2)
-    y_noisy = y + (np.random.uniform(-bound, bound, size).astype(np.float32))
+    boundary = np.sqrt(3 * noise_level**2)
+    y_noisy = y + (np.random.uniform(-boundary, boundary, size).astype(np.float32))
 
     return x, y_noisy, periodic
 
 
 def generate_complex_sine(size, periodic):
     """
-    Generate test data with mixed frequency, unevenly spaced sine wave with mixed noise.
+    Generate test data with varying frequency, unevenly spaced sine wave with mixed noise.
     """
     x = np.sort(np.random.uniform(0, 1, size)).astype(np.float32)
 
@@ -41,7 +41,7 @@ def generate_complex_sine(size, periodic):
         y[mask2] = np.sin(cycles2 * 2 * np.pi * x[mask2])  # Higher freq.
         y[mask3] = np.sin(cycles1 * 2 * np.pi * x[mask3]) + np.sin(
             cycles2 * 2 * np.pi * x[mask3]
-        )  # Mix freq
+        )  # Combined freq
         y = y + 2 * x  # Add linear trend
 
     noise = np.zeros_like(y)

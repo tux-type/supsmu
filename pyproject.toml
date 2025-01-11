@@ -1,18 +1,14 @@
-# [build-system]
-# requires = ["hatchling"]
-# build-backend = "hatchling.build"
-
 [build-system]
 requires = ["setuptools>=68.0", "wheel", "Cython>=3.0.0", "numpy>=1.20.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "supsmu"
-version = "0.1.0"
-description = "A package for supersmoother"
+version = "1.0.0"
+description = "Efficient SuperSmoother for Python"
 readme = "README.md"
 requires-python = ">=3.10"
-# license = {file = "LICENSE"}
+license = {file = "LICENSE"}
 authors = [
     {name = "Tux Type", email = "tuxtyped@gmail.com"},
 ]
@@ -33,7 +29,6 @@ dependencies = [
 [tool.uv]
 dev-dependencies = [
     "build>=1.2.2.post1",
-    "matplotlib>=3.10.0",
     "pytest>=8.3.4",
     "rpy2>=3.5.17",
 ]
