@@ -171,22 +171,25 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
          false, var_tol, smo, NULL);
 }
 
+/**
+ * Performs smoothing using a set span and calculates adjusted CV residual if
+ * needed
+ *
+ * @param n              Number of data points
+ * @param x              Array of x values [size: n]
+ * @param y              Array of y values [size: n]
+ * @param w              Array of weights for each point [size: n]
+ * @param span           Smoothing span (window width as fraction of total
+ * points)
+ * @param periodic       True if data is periodic, false otherwise
+ * @param save_residual  True to compute adjusted residuals, false otherwise
+ * @param var_tol        Variance tolerance for numerical stability
+ * @param smo            Output array for smoothed y values [size: n]
+ * @param adj_residuals  Output array for adjusted residuals if save_residual
+ */
 void smooth(size_t n, const double *x, const double *y, const double *w,
             double span, bool periodic, bool save_residual, double var_tol,
             double *smo, double *adj_residuals) {
-  // w: weights or arange(1, n)
-  // periodic: periodic variable flag
-  //   false => x is ordered interval variable
-  //   true => x is a periodic variable with values
-  //             in the range (0.0, 1.0) and period 1.0
-  // save_residual: flag indicating whether adjusted residuals should be
-  //   calculated and saved to adj_residuals
-  //   span: span of 0 indicates cross-validation/automatic
-  // alpha: controls small span (high freq.) penalty used with
-  //   automatic span selection (0.0 < alpha <= 10.0)
-  // var_tol: variance threshold to avoid division by small numbers
-  // smo: smooth output
-
   // J: window size/span
   size_t half_J = floor(0.5 * span * n + 0.5);
   half_J = half_J < 2 ? 2 : half_J;
@@ -292,6 +295,19 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
   }
 }
 
+/**
+ * Updates running statistics for weighted data points
+ *
+ * Incrementally updates mean values, variance, and covariance statistics
+ * for weighted (x,y) pairs. Can both add and remove points from the
+ * running calculations, allowing for sliding window statistics.
+ *
+ * @param stats    Pointer to RunningStats structure holding statistical values
+ * @param x        X value
+ * @param y        Y value
+ * @param weight   Weight associated with the data point
+ * @param adding   True to add the point to statistics, false to remove it
+ */
 void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding) {
   // Adding: adding or removing points to/from window
