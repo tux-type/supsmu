@@ -35,7 +35,7 @@ typedef struct SmoothState {
 typedef struct RunningStats {
   double x_mean;
   double y_mean;
-  double variance;
+  double x_variance;
   double covariance;
   double sum_weight;
 } RunningStats;
@@ -49,7 +49,7 @@ inline double max(double a, double b) { return a > b ? a : b; }
 
 void smooth(size_t n, const double *x, const double *y, const double *w,
             double span, bool periodic, bool save_residual, double var_tol,
-            double *smo, double *acvr);
+            double *smo, double *adj_residuals);
 
 void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding);
@@ -173,18 +173,19 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
 
 void smooth(size_t n, const double *x, const double *y, const double *w,
             double span, bool periodic, bool save_residual, double var_tol,
-            double *smo, double *acvr) {
+            double *smo, double *adj_residuals) {
   // w: weights or arange(1, n)
   // periodic: periodic variable flag
   //   false => x is ordered interval variable
   //   true => x is a periodic variable with values
   //             in the range (0.0, 1.0) and period 1.0
-  //  save_residual: flag indicating whether residuals should be calculated and saved to acvr
-  //  span: span of 0 indicates cross-validation/automatic selection
-  //  alpha: controls small span (high freq.) penalty used with automatic
-  //         span selection (0.0 < alpha <= 10.0)
+  // save_residual: flag indicating whether adjusted residuals should be
+  //   calculated and saved to adj_residuals
+  //   span: span of 0 indicates cross-validation/automatic
+  // alpha: controls small span (high freq.) penalty used with
+  //   automatic span selection (0.0 < alpha <= 10.0)
   // var_tol: variance threshold to avoid division by small numbers
-  // smo: smooth output?
+  // smo: smooth output
 
   // J: window size/span
   size_t half_J = floor(0.5 * span * n + 0.5);
@@ -219,7 +220,7 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
 
   // Main smoothing loop
   for (size_t j = 0; j < n; j++) {
-    // window: (out < i < in) <- might not always be true on window edges
+    // window: (out < i < in) <- except around window edges
 
     // Points falling out of window and being added to the window
     ssize_t out = j - half_J - 1;
@@ -243,25 +244,30 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
     }
 
     double slope = 0.0;
-    if (stats.variance > var_tol) {
-      slope = stats.covariance / stats.variance;
+    if (stats.x_variance > var_tol) {
+      slope = stats.covariance / stats.x_variance;
     }
     smo[j] = slope * (x[j] - stats.x_mean) + stats.y_mean;
 
-    // Calculate the cross validation residual for each point
-    // Smaller CV values => better fit
-    if (save_residual && acvr != NULL) {
-      double h = 0;
-      h = stats.sum_weight > 0 ? 1.0 / stats.sum_weight : h;
-      h = stats.variance > var_tol
-              ? h + pow((x[j] - stats.x_mean), 2) / stats.variance
-              : h;
-      acvr[j] = 0.0;
-      slope = 1.0 - w[j] * h;
-      if (slope > 0) {
-        acvr[j] = fabs(y[j] - smo[j]) / slope;
+    // Calculate the cross validation residual for each point (equivalent to
+    // leave-one-out) https://robjhyndman.com/hyndsight/loocv-linear-models/
+    // Smaller CV residual values => better fit
+    // Rationale: the CV residuals indicate stability/smoothness: ignoring a
+    //   single point should not throw off the rest of the predicted values
+    if (save_residual && adj_residuals != NULL) {
+      // aka h value of a Hat matrix
+      double leverage = 0;
+      leverage = stats.sum_weight > 0 ? 1.0 / stats.sum_weight : leverage;
+      leverage =
+          stats.x_variance > var_tol
+              ? leverage + pow((x[j] - stats.x_mean), 2) / stats.x_variance
+              : leverage;
+      adj_residuals[j] = 0.0;
+      double adj = 1.0 - w[j] * leverage;
+      if (adj > 0) {
+        adj_residuals[j] = fabs(y[j] - smo[j]) / adj;
       } else if (j > 0) {
-        acvr[j] = acvr[j - 1];
+        adj_residuals[j] = adj_residuals[j - 1];
       }
     }
   }
@@ -320,10 +326,10 @@ void update_stats(RunningStats *stats, double x, double y, double weight,
         stats->sum_weight * weight * (x - stats->x_mean) / sum_weight_original;
   }
   if (adding) {
-    stats->variance += weighted_x_deviation * (x - stats->x_mean);
+    stats->x_variance += weighted_x_deviation * (x - stats->x_mean);
     stats->covariance += weighted_x_deviation * (y - stats->y_mean);
   } else {
-    stats->variance -= weighted_x_deviation * (x - stats->x_mean);
+    stats->x_variance -= weighted_x_deviation * (x - stats->x_mean);
     stats->covariance -= weighted_x_deviation * (y - stats->y_mean);
   }
 }
