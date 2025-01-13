@@ -27,7 +27,7 @@ def compare_supsmus(x, y, periodic, **kwargs):
     with np_converter.context():
         r_result = np.array(r_supsmu(x, y, periodic=periodic, **kwargs)["y"])
 
-    assert np.allclose(py_result, r_result, atol=1e-2)
+    assert np.allclose(py_result, r_result, atol=1e-08)
 
 
 @pytest.mark.parametrize(
