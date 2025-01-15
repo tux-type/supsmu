@@ -9,6 +9,7 @@ The package is written in C for computational efficiency, with Python bindings f
 
 ## Installation
 
+Install supsmu with:
 ```sh
 pip install supsmu
 ```
