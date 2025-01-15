@@ -9,7 +9,9 @@ The package is written in C for computational efficiency, with Python bindings f
 
 ## Installation
 
-TBC
+```sh
+pip install supsmu
+```
 
 ## Python Example
 Minimal example using dummy data:
