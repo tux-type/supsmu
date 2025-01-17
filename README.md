@@ -21,7 +21,7 @@ Minimal example using dummy data:
 import numpy as np
 from supsmu import supsmu
 
-x = np.linspace(0, 1, 100, dtype=np.float64)
+x = np.linspace(0, 1, 100)
 # Dummy data - a basic sine wave
 y = np.sin(2 * 2 * np.pi * x)
 noise = np.random.normal(0, 0.2, 100)
@@ -31,8 +31,8 @@ y_smooth = supsmu(x, y_noisy, periodic=True)
 ```
 
 ## Additional Information
-The implementation is designed to closely match the outputs of the Fortran version (available in R),
-however there may still exist some inconsistencies.
+The C algorithm is implemented with the intent to closely match the outputs of the Fortran version
+(available in R), however there may still exist some inconsistencies.
 
 
 ## References
