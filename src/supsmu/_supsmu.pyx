@@ -1,5 +1,4 @@
 import warnings
-from typing import Any, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -8,7 +7,7 @@ from cython cimport floating
 
 np.import_array()
 
-RealArray = NDArray[Union[np.integer[Any], np.floating[Any]]]
+RealArray = NDArray[np.integer | np.floating]
 
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
