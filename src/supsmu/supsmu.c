@@ -40,18 +40,18 @@ typedef struct RunningStats {
   double sum_weight;
 } RunningStats;
 
-inline double *get_field(const SmoothState *ss, const size_t field_idx,
+static inline double *get_field(const SmoothState *ss, const size_t field_idx,
                          const size_t sample_idx) {
   return &ss->data[field_idx * ss->n + sample_idx];
 }
 
-inline double max(double a, double b) { return a > b ? a : b; }
+static inline double max(double a, double b) { return a > b ? a : b; }
 
-void smooth(size_t n, const double *x, const double *y, const double *w,
+static void smooth(size_t n, const double *x, const double *y, const double *w,
             double span, bool periodic, bool save_residual, double var_tol,
             double *smo, double *adj_residuals);
 
-void update_stats(RunningStats *stats, double x, double y, double weight,
+static void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding);
 
 void supsmu(size_t n, const double *x, const double *y, const double *w,
@@ -187,7 +187,7 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
  * @param smo            Output array for smoothed y values [size: n]
  * @param adj_residuals  Output array for adjusted residuals if save_residual
  */
-void smooth(size_t n, const double *x, const double *y, const double *w,
+static void smooth(size_t n, const double *x, const double *y, const double *w,
             double span, bool periodic, bool save_residual, double var_tol,
             double *smo, double *adj_residuals) {
   // J: window size/span
@@ -308,7 +308,7 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
  * @param weight   Weight associated with the data point
  * @param adding   True to add the point to statistics, false to remove it
  */
-void update_stats(RunningStats *stats, double x, double y, double weight,
+static void update_stats(RunningStats *stats, double x, double y, double weight,
                   bool adding) {
   // Adding: adding or removing points to/from window
 
