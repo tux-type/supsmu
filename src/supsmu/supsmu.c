@@ -41,18 +41,20 @@ typedef struct RunningStats {
 } RunningStats;
 
 static inline double *get_field(const SmoothState *ss, const size_t field_idx,
-                         const size_t sample_idx) {
+                                const size_t sample_idx) {
   return &ss->data[field_idx * ss->n + sample_idx];
 }
 
 static inline double maxd(double a, double b) { return a > b ? a : b; }
 
+static inline double mind(double a, double b) { return a < b ? a : b; }
+
 static void smooth(size_t n, const double *x, const double *y, const double *w,
-            double span, bool periodic, bool save_residual, double var_tol,
-            double *smo, double *adj_residuals);
+                   double span, bool periodic, bool save_residual,
+                   double var_tol, double *smo, double *adj_residuals);
 
 static void update_stats(RunningStats *stats, double x, double y, double weight,
-                  bool adding);
+                         bool adding);
 
 void supsmu(size_t n, const double *x, const double *y, const double *w,
             bool periodic, double span, double alpha, double *smo, double *sc) {
@@ -133,9 +135,9 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
         resmin < *get_field(ss, ResidualWoofer, row) && resmin > 0.0) {
       double *best_span = get_field(ss, BestSpans, row);
       double *residual_woofer = get_field(ss, ResidualWoofer, row);
-      *best_span = *best_span +
-                   (spans[Woofer] - *best_span) *
-                       pow(maxd(small, resmin / *residual_woofer), 10.0 - alpha);
+      *best_span = *best_span + (spans[Woofer] - *best_span) *
+                                    pow(maxd(small, resmin / *residual_woofer),
+                                        10.0 - alpha);
     }
   }
 
@@ -145,13 +147,10 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
 
   // Interpolate between y values based on residuals
   for (size_t row = 0; row < n; row++) {
-    if (*get_field(ss, BestSpansMidrange, row) <= spans[Tweeter]) {
-      *get_field(ss, BestSpansMidrange, row) = spans[Tweeter];
-    }
-    if (*get_field(ss, BestSpansMidrange, row) >= spans[Woofer]) {
-      *get_field(ss, BestSpansMidrange, row) = spans[Woofer];
-    }
-    double f = *get_field(ss, BestSpansMidrange, row) - spans[Midrange];
+    double *best_spans_midrange = get_field(ss, BestSpansMidrange, row);
+    *best_spans_midrange =
+        maxd(spans[Tweeter], mind(spans[Woofer], *best_spans_midrange));
+    double f = *best_spans_midrange - spans[Midrange];
     if (f >= 0.0) {
       f = f / (spans[Woofer] - spans[Midrange]);
       // Index 2 - midrange, Index 4 - woofer
@@ -188,8 +187,8 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
  * @param adj_residuals  Output array for adjusted residuals if save_residual
  */
 static void smooth(size_t n, const double *x, const double *y, const double *w,
-            double span, bool periodic, bool save_residual, double var_tol,
-            double *smo, double *adj_residuals) {
+                   double span, bool periodic, bool save_residual,
+                   double var_tol, double *smo, double *adj_residuals) {
   // J: window size/span
   size_t half_J = floor(0.5 * span * n + 0.5);
   half_J = half_J < 2 ? 2 : half_J;
@@ -309,7 +308,7 @@ static void smooth(size_t n, const double *x, const double *y, const double *w,
  * @param adding   True to add the point to statistics, false to remove it
  */
 static void update_stats(RunningStats *stats, double x, double y, double weight,
-                  bool adding) {
+                         bool adding) {
   // Adding: adding or removing points to/from window
 
   double sum_weight_original = stats->sum_weight;
