@@ -5,10 +5,8 @@ import sys
 
 def get_compile_args():
     if sys.platform.startswith("win"):
-        # MSVC
         return ["/O2", "/arch:AVX2"]
     else:
-        # GCC/Clang
         return ["-O3"]
 
 extensions = [
