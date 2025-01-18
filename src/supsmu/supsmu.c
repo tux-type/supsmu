@@ -202,7 +202,7 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
   // Separate loops to allow optimisations on non-periodic case
   if (periodic) {
     for (size_t i = 0; i < J; i++) {
-      ssize_t j = i - half_J - 1;
+      long j = i - half_J - 1;
       double x_j;
 
       if (j < 0) {
@@ -226,7 +226,7 @@ void smooth(size_t n, const double *x, const double *y, const double *w,
     // window: (out < i < in) <- except around window edges
 
     // Points falling out of window and being added to the window
-    ssize_t out = j - half_J - 1;
+    long out = j - half_J - 1;
     size_t in = j + half_J;
 
     if (out >= 0 && in < n) {
