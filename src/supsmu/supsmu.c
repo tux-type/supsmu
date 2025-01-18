@@ -45,7 +45,7 @@ static inline double *get_field(const SmoothState *ss, const size_t field_idx,
   return &ss->data[field_idx * ss->n + sample_idx];
 }
 
-static inline double max(double a, double b) { return a > b ? a : b; }
+static inline double maxd(double a, double b) { return a > b ? a : b; }
 
 static void smooth(size_t n, const double *x, const double *y, const double *w,
             double span, bool periodic, bool save_residual, double var_tol,
@@ -135,7 +135,7 @@ void supsmu(size_t n, const double *x, const double *y, const double *w,
       double *residual_woofer = get_field(ss, ResidualWoofer, row);
       *best_span = *best_span +
                    (spans[Woofer] - *best_span) *
-                       pow(max(small, resmin / *residual_woofer), 10.0 - alpha);
+                       pow(maxd(small, resmin / *residual_woofer), 10.0 - alpha);
     }
   }
 
