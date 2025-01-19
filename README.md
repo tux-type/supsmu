@@ -34,6 +34,16 @@ y_smooth = supsmu(x, y_noisy, periodic=True)
 The C algorithm is implemented with the intent to closely match the outputs of the Fortran version
 (available in R), however there may still exist some inconsistencies.
 
+## Parameters
+| PARAMETER | TYPE | DESCRIPTION |
+|-----------|------|-------------|
+| `x` | `np.ndarray[np.floating \| np.integer]` | x values |
+| `y` | `np.ndarray[np.floating \| np.integer]` | y values |
+| `wt` | `np.ndarray[np.floating \| np.integer] \| None` | weights |
+| `span` | `float` | smoothing span (0 for cross-validation, otherwise between 0 and 1) |
+| `periodic` | `bool` | True if data is periodic, False otherwise |
+| `bass` | `float` | bass enhancement (between 0 and 10) for increased smoothness |
+
 
 ## References
 [1] J. H. Friedman, "A Variable Span Smoother", SLAC National Accelerator Laboratory (SLAC),
